@@ -167,14 +167,14 @@ const PlantMap: React.FC<PlantMapProps> = ({ onNavigate }) => {
           >
             <defs>
               <pattern id="grid" width="20" height="20" patternUnits="userSpaceOnUse">
-                <path d="M 20 0 L 0 0 0 20" fill="none" stroke="#1A2235" strokeWidth="0.5"/>
+                <path d="M 20 0 L 0 0 0 20" fill="none" stroke="#12182B" strokeWidth="0.5"/>
               </pattern>
               <filter id="glow-critical">
                 <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
                 <feMerge><feMergeNode in="coloredBlur"/><feMergeNode in="SourceGraphic"/></feMerge>
               </filter>
             </defs>
-            <rect width="590" height="375" fill="#0D1117"/>
+            <rect width="590" height="375" fill="#070913"/>
             <rect width="590" height="375" fill="url(#grid)"/>
 
             {/* Pipelines */}

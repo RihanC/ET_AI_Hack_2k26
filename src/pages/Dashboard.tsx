@@ -68,39 +68,66 @@ const Dashboard: React.FC<DashboardProps> = ({ liveKPI, liveAlerts, onNavigate }
     return null;
   };
 
+  const sparklinesData: Record<string, number[]> = {
+    'Plant Health': [78, 77, 79, 78, 80, 81, 79, 80],
+    'Risk Score': [55, 58, 62, 60, 64, 68, 65, 68],
+    'Active Workers': [6, 7, 8, 8, 9, 8, 8, 8],
+    'Sensors Online': [11, 11, 11, 11, 12, 12, 11, 11],
+    'Active Permits': [4, 4, 5, 5, 6, 5, 5, 5],
+    'Critical Alerts': [1, 1, 0, 0, 2, 2, 1, 2],
+  };
+
+  const generateSparklinePath = (points: number[]) => {
+    const min = Math.min(...points);
+    const max = Math.max(...points);
+    const range = max - min || 1;
+    return points.map((p, index) => {
+      const x = (index / (points.length - 1)) * 60;
+      const y = 20 - ((p - min) / range) * 16 - 2;
+      return `${index === 0 ? 'M' : 'L'} ${x} ${y}`;
+    }).join(' ');
+  };
+
   return (
-    <div className="page-content animate-fade-in">
+    <div className="page-content animate-fade-in" style={{ padding: 'var(--spacing-2xl)' }}>
       {/* Critical Alert Banner */}
       {criticalAlerts.length > 0 && (
         <div className="critical-banner" onClick={() => onNavigate('plant-map')}>
           <div className="critical-banner-left">
             <div className="critical-banner-icon">
-              <AlertTriangle size={16} />
+              <AlertTriangle size={14} />
             </div>
             <div>
               <div className="critical-banner-title">
-                {criticalAlerts.length} Critical Alert{criticalAlerts.length > 1 ? 's' : ''} Require Immediate Action
+                {criticalAlerts.length} Critical Alert{criticalAlerts.length > 1 ? 's' : ''} Require Attention
               </div>
               <div className="critical-banner-desc">{criticalAlerts[0]?.description}</div>
             </div>
           </div>
           <div className="critical-banner-action">
-            View on Map <ChevronRight size={14} />
+            View live map <ChevronRight size={13} />
           </div>
         </div>
       )}
 
-      {/* Page Header */}
-      <div className="card dashboard-header-card" style={{ marginTop: criticalAlerts.length > 0 ? 16 : 0 }}>
-        <div>
-          <h1 className="page-title">Safety Dashboard</h1>
-          <p className="page-subtitle">Real-time overview · Morning Shift · Updated 3s ago</p>
-        </div>
-        <div className="flex gap-2 items-center">
-          <div className="badge badge-success">
-            <span className="pulse-dot success" style={{width:6,height:6}} />
-            LIVE
+      {/* Premium Dashboard Hero Header */}
+      <div className="dashboard-hero-card" style={{ marginTop: criticalAlerts.length > 0 ? 24 : 0 }}>
+        <div className="hero-greeting-section">
+          <span className="hero-welcome">Good Morning, Priya</span>
+          <div className="hero-meta-grid">
+            <span className="hero-meta-item">Morning Shift</span>
+            <span className="hero-meta-dot" />
+            <span className="hero-meta-item">Plant Health: <strong>{Math.round(liveKPI.plantHealth)}%</strong></span>
+            <span className="hero-meta-dot" />
+            <span className="hero-meta-item">Updated 3s ago</span>
+            <span className="hero-meta-dot" />
+            <span className="hero-meta-item live-indicator">
+              <span className="pulse-dot success" style={{ width: 6, height: 6 }} />
+              Live monitoring enabled
+            </span>
           </div>
+        </div>
+        <div className="hero-actions">
           <button className="btn btn-ghost btn-sm" onClick={() => onNavigate('reports')}>
             <BarChart2 size={13} />
             Generate Report
@@ -115,22 +142,36 @@ const Dashboard: React.FC<DashboardProps> = ({ liveKPI, liveAlerts, onNavigate }
             key={i}
             className={`kpi-card ${kpi.action ? 'clickable' : ''}`}
             onClick={kpi.action}
-            style={{ '--kpi-color': kpi.color } as React.CSSProperties}
           >
             <div className="kpi-header">
               <span className="kpi-label">{kpi.label}</span>
-              <span className="kpi-icon" style={{ color: kpi.color, background: `${kpi.color}18` }}>
+              <span className="kpi-icon-wrapper">
                 {kpi.icon}
               </span>
             </div>
-            <div className="kpi-value" style={{ color: kpi.color }}>{kpi.value}</div>
+            <div className="kpi-body">
+              <div className="kpi-value">{kpi.value}</div>
+            </div>
             <div className="kpi-footer">
-              <span className="kpi-trend">
-                {kpi.trend === 'up' ? <TrendingUp size={11} color="#EF4444" /> :
-                 kpi.trend === 'down' ? <TrendingDown size={11} color="#22C55E" /> :
-                 <Minus size={11} color="#94A3B8" />}
-              </span>
-              <span className="kpi-sub">{kpi.sub}</span>
+              <div className="kpi-trend-row">
+                <span className="kpi-trend-icon">
+                  {kpi.trend === 'up' ? <TrendingUp size={11} color="var(--critical)" /> :
+                   kpi.trend === 'down' ? <TrendingDown size={11} color="var(--success)" /> :
+                   <Minus size={11} color="var(--text-muted)" />}
+                </span>
+                <span className="kpi-sub">{kpi.sub}</span>
+              </div>
+              <div className="kpi-sparkline-container">
+                <svg className="kpi-sparkline" width="60" height="20" viewBox="0 0 60 20">
+                  <path
+                    d={generateSparklinePath(sparklinesData[kpi.label] || [50, 50, 50, 50])}
+                    fill="none"
+                    stroke={kpi.color}
+                    strokeWidth="1.5"
+                    strokeLinecap="round"
+                  />
+                </svg>
+              </div>
             </div>
           </div>
         ))}

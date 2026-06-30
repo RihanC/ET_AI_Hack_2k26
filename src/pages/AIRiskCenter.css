@@ -269,7 +269,7 @@
 }
 
 .chart-tooltip {
-  background: var(--card-bg);
+  background: var(--bg-secondary);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-md);
   padding: 8px 12px;
