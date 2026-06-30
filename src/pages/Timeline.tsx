@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Search, Filter, Clock, Cpu, Users, FileText, Zap, Brain, ChevronRight, AlertTriangle } from 'lucide-react';
 import { timelineEvents } from '../data/mockData';
 import type { TimelineEvent } from '../data/mockData';
+import './Timeline.css';
 
 interface TimelineProps {
   onNavigate: (page: string) => void;
@@ -112,7 +113,8 @@ const Timeline: React.FC<TimelineProps> = ({ onNavigate }) => {
           <div style={{padding:'10px 16px',borderBottom:'1px solid var(--border-color)',fontSize:11,fontWeight:700,color:'var(--text-secondary)',textTransform:'uppercase',letterSpacing:'0.06em'}}>
             {filtered.length} Events · Today · Morning Shift
           </div>
-          <div style={{flex:1,overflowY:'auto'}}>
+          <div className="timeline-spine-container" style={{flex:1,overflowY:'auto', padding: '24px 0'}}>
+            <div className="timeline-spine-line" />
             {filtered.map((evt, i) => {
               const catColor = CAT_COLORS[evt.category];
               const sevColor = SEV_COLORS[evt.severity];
@@ -120,17 +122,14 @@ const Timeline: React.FC<TimelineProps> = ({ onNavigate }) => {
               return (
                 <div
                   key={evt.id}
-                  className={`timeline-event-row ${isSelected ? 'selected' : ''}`}
+                  className={`timeline-spine-item ${i % 2 === 0 ? 'left' : 'right'} ${isSelected ? 'selected' : ''}`}
                   onClick={() => setSelected(evt)}
-                  style={{borderLeft: isSelected ? `2px solid ${sevColor}` : '2px solid transparent'}}
                 >
-                  {/* Timeline dot & line */}
-                  <div className="timeline-event-track">
-                    <div className="timeline-event-dot" style={{background:sevColor, boxShadow: evt.severity==='critical' ? `0 0 8px ${sevColor}60`:undefined}} />
-                    {i < filtered.length - 1 && <div className="timeline-event-line" />}
+                  <div className="timeline-spine-connector">
+                    <div className="timeline-spine-dot" style={{background:sevColor, boxShadow: evt.severity==='critical' ? `0 0 8px ${sevColor}60`:undefined}} />
                   </div>
-
-                  <div className="timeline-event-content">
+                  
+                  <div className="timeline-spine-content card-sm" style={{borderColor: isSelected ? sevColor : 'var(--border-color)', borderWidth: isSelected ? 2 : 1}}>
                     <div className="timeline-event-header">
                       <span className="cat-badge" style={{background:`${catColor}15`,color:catColor,border:`1px solid ${catColor}30`}}>
                         {CAT_ICONS[evt.category]} {evt.category}

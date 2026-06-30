@@ -9,6 +9,7 @@ import {
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend
 } from 'recharts';
 import { kpiData, trendData24h, alerts, riskFactors, timelineEvents } from '../data/mockData';
+import './Dashboard.css';
 
 interface DashboardProps {
   liveKPI: typeof kpiData;
@@ -90,7 +91,7 @@ const Dashboard: React.FC<DashboardProps> = ({ liveKPI, liveAlerts, onNavigate }
       )}
 
       {/* Page Header */}
-      <div className="page-header" style={{ marginTop: criticalAlerts.length > 0 ? 16 : 0 }}>
+      <div className="card dashboard-header-card" style={{ marginTop: criticalAlerts.length > 0 ? 16 : 0 }}>
         <div>
           <h1 className="page-title">Safety Dashboard</h1>
           <p className="page-subtitle">Real-time overview · Morning Shift · Updated 3s ago</p>

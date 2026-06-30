@@ -67,6 +67,23 @@ const PlantMap: React.FC<PlantMapProps> = ({ onNavigate }) => {
   );
   const [selected, setSelected] = useState<SelectedObject | null>(null);
   const [zoom, setZoom] = useState(1);
+  const [pan, setPan] = useState({ x: 0, y: 0 });
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+
+  const handleMouseDown = (e: React.MouseEvent) => {
+    setIsDragging(true);
+    setDragStart({ x: e.clientX - pan.x, y: e.clientY - pan.y });
+  };
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (!isDragging) return;
+    setPan({ x: e.clientX - dragStart.x, y: e.clientY - dragStart.y });
+  };
+
+  const handleMouseUp = () => {
+    setIsDragging(false);
+  };
 
   const toggleLayer = (key: LayerKey) => {
     setActiveLayers(prev => {
@@ -126,15 +143,27 @@ const PlantMap: React.FC<PlantMapProps> = ({ onNavigate }) => {
             <span className="text-sm text-secondary">{Math.round(zoom * 100)}%</span>
             <button className="btn btn-ghost btn-sm" onClick={() => setZoom(z => Math.max(z - 0.2, 0.6))}>−</button>
             <button className="btn btn-ghost btn-sm" onClick={() => setZoom(1)}>Reset</button>
+            <button className="btn btn-ghost btn-sm" onClick={() => { setZoom(1); setPan({x: 0, y: 0}); }}>Center</button>
           </div>
         </div>
 
         {/* SVG Digital Twin */}
-        <div className="plant-map-canvas" onClick={() => selected && setSelected(null)}>
+        <div 
+          className={`plant-map-canvas ${isDragging ? 'dragging' : ''}`}
+          onClick={() => selected && setSelected(null)}
+          onMouseDown={handleMouseDown}
+          onMouseMove={handleMouseMove}
+          onMouseUp={handleMouseUp}
+          onMouseLeave={handleMouseUp}
+        >
           <svg
             viewBox="0 0 590 375"
             className="plant-map-svg"
-            style={{ transform: `scale(${zoom})`, transformOrigin: 'top left', transition: 'transform 0.3s ease' }}
+            style={{ 
+              transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`, 
+              transformOrigin: 'center', 
+              transition: isDragging ? 'none' : 'transform 0.3s ease' 
+            }}
           >
             <defs>
               <pattern id="grid" width="20" height="20" patternUnits="userSpaceOnUse">

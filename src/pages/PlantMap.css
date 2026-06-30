@@ -62,19 +62,25 @@
 /* Canvas */
 .plant-map-canvas {
   flex: 1;
-  overflow: auto;
+  overflow: hidden;
   position: relative;
-  padding: 16px;
   background: var(--bg-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: grab;
+}
+
+.plant-map-canvas.dragging {
+  cursor: grabbing;
 }
 
 .plant-map-svg {
   width: 100%;
   max-width: 900px;
-  margin: 0 auto;
-  display: block;
   border-radius: var(--radius-lg);
   border: 1px solid var(--border-color);
+  user-select: none;
 }
 
 /* Event Feed */
