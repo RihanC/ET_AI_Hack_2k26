@@ -122,8 +122,9 @@
 }
 
 .kpi-card {
-  background: var(--bg-secondary);
-  border: 1px solid var(--border-color);
+  background: linear-gradient(135deg, rgba(15, 19, 34, 0.95) 0%, rgba(10, 13, 27, 0.95) 100%);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.05);
   border-radius: var(--radius-lg);
   padding: var(--spacing-xl) 20px;
   transition: transform var(--transition), border-color var(--transition), box-shadow var(--transition);
@@ -138,9 +139,9 @@
 }
 
 .kpi-card:hover {
-  border-color: #2D3958;
+  border-color: rgba(59, 130, 246, 0.25);
   transform: translateY(-2px);
-  box-shadow: var(--shadow-md);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35), 0 0 15px rgba(59, 130, 246, 0.05);
 }
 
 .kpi-header {
@@ -176,6 +177,7 @@
   letter-spacing: -0.03em;
   color: var(--text-primary);
   line-height: 1;
+  font-family: var(--font-mono);
 }
 
 .kpi-footer {

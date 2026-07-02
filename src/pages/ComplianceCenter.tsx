@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { ShieldCheck, AlertTriangle, CheckCircle, FileText, Download, ChevronRight, XCircle } from 'lucide-react';
 import { complianceChecks, kpiData } from '../data/mockData';
+import './ComplianceCenter.css';
 
 const ComplianceCenter: React.FC = () => {
   const score = kpiData.complianceScore;
@@ -21,21 +22,26 @@ const ComplianceCenter: React.FC = () => {
       </div>
 
       <div className="grid grid-4 mb-4">
-        <div className="card card-sm" style={{borderTop:'2px solid var(--blue)'}}>
+        <div className="card card-sm compliance-stat-card compliance-blue">
           <div className="label mb-2">Compliance Score</div>
-          <div style={{fontSize:28,fontWeight:800,color:score>=80?'#22C55E':score>=60?'#F59E0B':'#EF4444'}}>{score}%</div>
+          <div 
+            className="compliance-metric-value" 
+            style={{ color: score >= 80 ? 'var(--success)' : score >= 60 ? 'var(--warning)' : 'var(--critical)' }}
+          >
+            {score}%
+          </div>
         </div>
-        <div className="card card-sm" style={{borderTop:'2px solid #22C55E'}}>
+        <div className="card card-sm compliance-stat-card compliance-success">
           <div className="label mb-2">Checks Passed</div>
-          <div style={{fontSize:28,fontWeight:800,color:'#22C55E'}}>{passed}</div>
+          <div className="compliance-metric-value" style={{ color: 'var(--success)' }}>{passed}</div>
         </div>
-        <div className="card card-sm" style={{borderTop:'2px solid #F59E0B'}}>
+        <div className="card card-sm compliance-stat-card compliance-warning">
           <div className="label mb-2">Warnings</div>
-          <div style={{fontSize:28,fontWeight:800,color:'#F59E0B'}}>{warning}</div>
+          <div className="compliance-metric-value" style={{ color: 'var(--warning)' }}>{warning}</div>
         </div>
-        <div className="card card-sm" style={{borderTop:'2px solid #EF4444'}}>
+        <div className="card card-sm compliance-stat-card compliance-critical">
           <div className="label mb-2">Violations</div>
-          <div style={{fontSize:28,fontWeight:800,color:'#EF4444'}}>{failed}</div>
+          <div className="compliance-metric-value" style={{ color: 'var(--critical)' }}>{failed}</div>
         </div>
       </div>
 
@@ -43,24 +49,21 @@ const ComplianceCenter: React.FC = () => {
         <div className="card-header">
           <div className="card-title">Automated Safety Checklist</div>
         </div>
-        <div style={{display:'flex',flexDirection:'column',gap:8}}>
+        <div className="compliance-checklist-container">
           {complianceChecks.map(check => (
-            <div key={check.id} style={{
-              display:'flex',alignItems:'center',gap:12,padding:'12px 16px',
-              background:'var(--bg-primary)',border:'1px solid var(--border-color)',borderRadius:'var(--radius-md)'
-            }}>
-              {check.status === 'pass' ? <CheckCircle size={18} color="#22C55E"/> :
-               check.status === 'fail' ? <XCircle size={18} color="#EF4444"/> :
-               <AlertTriangle size={18} color="#F59E0B"/>}
-              <div style={{flex:1}}>
-                <div style={{fontSize:13,fontWeight:600}}>{check.rule}</div>
-                <div style={{fontSize:11,color:'var(--text-secondary)',marginTop:2}}>{check.evidence}</div>
+            <div key={check.id} className="compliance-checklist-item">
+              {check.status === 'pass' ? <CheckCircle size={18} color="var(--success)"/> :
+               check.status === 'fail' ? <XCircle size={18} color="var(--critical)"/> :
+               <AlertTriangle size={18} color="var(--warning)"/>}
+              <div className="compliance-check-info">
+                <div className="compliance-check-rule">{check.rule}</div>
+                <div className="compliance-check-evidence">{check.evidence}</div>
               </div>
-              <div style={{textAlign:'right'}}>
+              <div className="compliance-check-right">
                 <span className={`badge badge-${check.status==='pass'?'success':check.status==='fail'?'critical':'warning'}`}>
                   {check.status.toUpperCase()}
                 </span>
-                <div style={{fontSize:10,color:'var(--text-muted)',marginTop:4}}>{check.zone}</div>
+                <div className="compliance-check-zone">{check.zone}</div>
               </div>
             </div>
           ))}
@@ -71,3 +74,4 @@ const ComplianceCenter: React.FC = () => {
 };
 
 export default ComplianceCenter;
+

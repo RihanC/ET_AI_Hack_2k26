@@ -1,6 +1,7 @@
+/* Active Permits Stylesheet */
 .permits-grid {
   display: grid;
-  grid-template-columns: 320px 1fr;
+  grid-template-columns: 340px 1fr;
   gap: 16px;
   height: calc(100vh - var(--header-height) - 240px);
   overflow: hidden;
@@ -11,16 +12,76 @@
   max-height: calc(100vh - var(--header-height) - 290px);
 }
 
+.permits-list-card {
+  padding: 0 !important;
+  overflow: hidden;
+}
+
+.permits-header-tabs {
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+/* Metric Cards */
+.permit-metric-card {
+  position: relative;
+  overflow: hidden;
+  transition: transform var(--transition), border-color var(--transition), box-shadow var(--transition);
+}
+
+.permit-metric-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 2px;
+  background: var(--border-color);
+}
+
+.permit-metric-card.border-blue::before { background: var(--blue); }
+.permit-metric-card.border-critical::before { background: var(--critical); }
+.permit-metric-card.border-warning::before { background: var(--warning); }
+.permit-metric-card.border-purple::before { background: var(--purple); }
+
+.permit-metric-icon {
+  padding: 4px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.permit-metric-value {
+  font-size: 28px;
+  font-weight: 800;
+  font-family: var(--font-mono);
+  letter-spacing: -0.03em;
+  margin-top: 6px;
+  line-height: 1;
+}
+
+/* Permit Cards in list */
 .permit-card {
   padding: 12px 16px;
   border-bottom: 1px solid var(--border-subtle);
   cursor: pointer;
-  transition: background var(--transition);
+  transition: background-color var(--transition), border-left-color var(--transition);
+  border-left: 2px solid transparent;
 }
 
-.permit-card:hover { background: rgba(255,255,255,0.02); }
-.permit-card.selected { background: rgba(59,130,246,0.05); border-left: 2px solid var(--blue); }
-.permit-card.critical { border-left: 2px solid rgba(239,68,68,0.4); }
+.permit-card:hover {
+  background: var(--card-bg-hover);
+}
+
+.permit-card.selected {
+  background: rgba(37, 99, 235, 0.05);
+  border-left-color: var(--blue);
+}
+
+.permit-card.critical {
+  border-left-color: rgba(239, 68, 68, 0.4);
+}
 
 .permit-card-top {
   display: flex;
@@ -29,23 +90,44 @@
   margin-bottom: 6px;
 }
 
+/* Minimal Badge Dot */
 .permit-type-badge {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  padding: 2px 8px;
-  border-radius: var(--radius-full);
+  gap: 6px;
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
   font-size: 10px;
-  font-weight: 700;
-  border: 1px solid;
+  font-weight: 600;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  color: var(--text-secondary);
   text-transform: uppercase;
   letter-spacing: 0.04em;
+}
+
+.permit-type-badge::before {
+  content: '';
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background-color: var(--type-color, var(--text-muted));
 }
 
 .permit-id {
   font-size: 10px;
   color: var(--text-muted);
   font-family: var(--font-mono);
+}
+
+.permit-card-compliance {
+  margin-top: 4px;
+}
+
+.compliance-text {
+  font-size: 10px;
+  color: var(--text-muted);
 }
 
 .permit-title {
@@ -79,11 +161,72 @@
   margin-bottom: 2px;
 }
 
+/* Details Panel styling */
+.permit-detail-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 16px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.permit-detail-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.permit-detail-cell {
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 8px 10px;
+}
+
+.permit-detail-label {
+  font-size: 10px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.permit-detail-val {
+  font-size: 13px;
+  font-weight: 600;
+  margin-top: 2px;
+}
+
+.permit-section {
+  margin-bottom: 16px;
+}
+
+.compliance-score-val {
+  font-size: 18px;
+  font-weight: 800;
+}
+
+.progress-bar {
+  height: 8px;
+  background: var(--border-color);
+  border-radius: var(--radius-full);
+  overflow: hidden;
+}
+
+.progress-bar-fill {
+  height: 100%;
+  border-radius: var(--radius-full);
+  transition: width 0.3s ease;
+}
+
+/* AI Recommendation block */
 .ai-recommendation {
   padding: 12px;
-  background: rgba(139,92,246,0.06);
-  border: 1px solid rgba(139,92,246,0.2);
+  background: rgba(139, 92, 246, 0.03);
+  border: 1px solid rgba(139, 92, 246, 0.12);
   border-radius: var(--radius-md);
+  margin-bottom: 16px;
 }
 
 .ai-rec-title {
@@ -104,6 +247,7 @@
   color: var(--text-secondary);
 }
 
+/* Worker Row */
 .panel-worker-row {
   display: flex;
   align-items: center;
@@ -113,4 +257,70 @@
   border: 1px solid var(--border-color);
   border-radius: var(--radius-md);
   margin-bottom: 5px;
+  cursor: pointer;
+  transition: background-color var(--transition), border-color var(--transition);
+}
+
+.panel-worker-row:hover {
+  background: var(--card-bg-hover);
+  border-color: rgba(59, 130, 246, 0.2);
+}
+
+.worker-avatar-sm {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #3B82F6, #8B5CF6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 9px;
+  font-weight: 700;
+  color: white;
+  flex-shrink: 0;
+}
+
+.worker-row-name {
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.worker-row-role {
+  font-size: 10px;
+  color: var(--text-muted);
+}
+
+/* Equipment */
+.equipment-tag {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 10px;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  margin-bottom: 4px;
+  font-size: 12px;
+}
+
+/* Buttons and Actions */
+.permit-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.btn.center {
+  justify-content: center;
+}
+
+.btn-success-action {
+  background: var(--success);
+  color: white;
+  border-color: rgba(255, 255, 255, 0.1);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+.btn-success-action:hover {
+  background: #059669;
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.15);
 }

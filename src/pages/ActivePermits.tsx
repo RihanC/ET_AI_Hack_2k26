@@ -58,19 +58,19 @@ const ActivePermits: React.FC<ActivePermitsProps> = ({ onNavigate }) => {
       </div>
 
       {/* KPI Row */}
-      <div className="grid-4 mb-4">
+      <div className="grid grid-4 mb-4">
         {[
-          { label: 'Active Permits', value: activeCount, color: '#3B82F6', icon: <FileText size={16}/> },
-          { label: 'Critical Risk', value: criticalPermits, color: '#EF4444', icon: <AlertTriangle size={16}/> },
-          { label: 'Avg Compliance', value: `${Math.round(permits.filter(p=>p.status==='active').reduce((a,p)=>a+p.compliance,0)/activeCount)}%`, color: '#F59E0B', icon: <CheckCircle size={16}/> },
-          { label: 'Pending Approval', value: pendingCount, color: '#8B5CF6', icon: <Clock size={16}/> },
+          { label: 'Active Permits', value: activeCount, borderClass: 'border-blue', color: 'var(--blue)', icon: <FileText size={16}/> },
+          { label: 'Critical Risk', value: criticalPermits, borderClass: 'border-critical', color: 'var(--critical)', icon: <AlertTriangle size={16}/> },
+          { label: 'Avg Compliance', value: `${Math.round(permits.filter(p=>p.status==='active').reduce((a,p)=>a+p.compliance,0)/activeCount)}%`, borderClass: 'border-warning', color: 'var(--warning)', icon: <CheckCircle size={16}/> },
+          { label: 'Pending Approval', value: pendingCount, borderClass: 'border-purple', color: 'var(--purple)', icon: <Clock size={16}/> },
         ].map(k => (
-          <div key={k.label} className="card card-sm" style={{borderTop:`2px solid ${k.color}`}}>
+          <div key={k.label} className={`card card-sm permit-metric-card ${k.borderClass}`}>
             <div className="flex justify-between items-center">
               <span className="label">{k.label}</span>
-              <span style={{color:k.color,background:`${k.color}18`,padding:'4px',borderRadius:6}}>{k.icon}</span>
+              <span className="permit-metric-icon" style={{ color: k.color, backgroundColor: `${k.color}12` }}>{k.icon}</span>
             </div>
-            <div style={{fontSize:28,fontWeight:800,color:k.color,letterSpacing:'-0.03em',marginTop:6,lineHeight:1}}>{k.value}</div>
+            <div className="permit-metric-value" style={{ color: k.color }}>{k.value}</div>
           </div>
         ))}
       </div>
@@ -78,8 +78,8 @@ const ActivePermits: React.FC<ActivePermitsProps> = ({ onNavigate }) => {
       {/* Main Content */}
       <div className="permits-grid">
         {/* Permit List */}
-        <div className="card" style={{padding:0,overflow:'hidden'}}>
-          <div style={{padding:'14px 16px',borderBottom:'1px solid var(--border-color)'}}>
+        <div className="card permits-list-card">
+          <div className="permits-header-tabs">
             <div className="tabs">
               <button className={`tab ${tab==='active'?'active':''}`} onClick={() => setTab('active')}>
                 Active ({activeCount})
@@ -104,21 +104,21 @@ const ActivePermits: React.FC<ActivePermitsProps> = ({ onNavigate }) => {
                 >
                   <div className="permit-card-top">
                     <div>
-                      <div className="permit-type-badge" style={{background:`${typeColor}15`,color:typeColor,borderColor:`${typeColor}30`}}>
+                      <div className="permit-type-badge" style={{ '--type-color': typeColor } as React.CSSProperties}>
                         {TYPE_LABELS[permit.type]}
                       </div>
-                      <div className="permit-id" style={{marginTop:4}}>{permit.id}</div>
+                      <div className="permit-id">{permit.id}</div>
                     </div>
                     <div className="text-right">
                       <span className={`badge badge-${permit.riskLevel==='critical'?'critical':permit.riskLevel==='high'?'warning':'muted'}`}>
                         {permit.riskLevel.toUpperCase()}
                       </span>
                       {permit.status === 'active' && (
-                        <div style={{marginTop:4}}>
+                        <div className="permit-card-compliance">
                           <div className="compliance-mini">
-                            <div style={{width:`${permit.compliance}%`,background:permit.compliance>=80?'#22C55E':permit.compliance>=60?'#F59E0B':'#EF4444',height:'100%',borderRadius:2}}/>
+                            <div style={{ width: `${permit.compliance}%`, background: permit.compliance >= 80 ? 'var(--success)' : permit.compliance >= 60 ? 'var(--warning)' : 'var(--critical)', height: '100%', borderRadius: 2 }} />
                           </div>
-                          <span style={{fontSize:10,color:'var(--text-muted)'}}>{permit.compliance}% compliant</span>
+                          <span className="compliance-text">{permit.compliance}% compliant</span>
                         </div>
                       )}
                     </div>
@@ -135,17 +135,17 @@ const ActivePermits: React.FC<ActivePermitsProps> = ({ onNavigate }) => {
         </div>
 
         {/* Permit Detail */}
-        <div className="card" style={{overflow:'auto'}}>
+        <div className="card" style={{ overflow: 'auto' }}>
           {selected ? (
             <div>
               {/* Header */}
-              <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:16,paddingBottom:16,borderBottom:'1px solid var(--border-color)'}}>
+              <div className="permit-detail-header">
                 <div>
-                  <div className="permit-type-badge" style={{background:`${TYPE_COLORS[selected.type]}15`,color:TYPE_COLORS[selected.type],borderColor:`${TYPE_COLORS[selected.type]}30`,display:'inline-flex',marginBottom:6}}>
+                  <div className="permit-type-badge" style={{ '--type-color': TYPE_COLORS[selected.type], display: 'inline-flex', marginBottom: 6 } as React.CSSProperties}>
                     {TYPE_LABELS[selected.type]}
                   </div>
-                  <h2 style={{fontSize:16,fontWeight:700,marginBottom:4}}>{selected.title}</h2>
-                  <div style={{fontSize:12,color:'var(--text-muted)'}}>{selected.id}</div>
+                  <h2 style={{ fontSize: 16, fontWeight: 700, marginBottom: 4 }}>{selected.title}</h2>
+                  <div className="permit-id">{selected.id}</div>
                 </div>
                 <span className={`badge badge-${selected.status==='active'?'success':selected.status==='expired'?'muted':'warning'}`}>
                   {selected.status.toUpperCase()}
@@ -153,7 +153,7 @@ const ActivePermits: React.FC<ActivePermitsProps> = ({ onNavigate }) => {
               </div>
 
               {/* Details Grid */}
-              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,marginBottom:16}}>
+              <div className="permit-detail-grid">
                 {[
                   ['Zone', selected.zone],
                   ['Issued by', selected.issuer],
@@ -162,46 +162,49 @@ const ActivePermits: React.FC<ActivePermitsProps> = ({ onNavigate }) => {
                   ['Risk Level', selected.riskLevel.toUpperCase()],
                   ['Workers', `${selected.workers.length} assigned`],
                 ].map(([k,v]) => (
-                  <div key={String(k)} style={{background:'var(--bg-primary)',border:'1px solid var(--border-color)',borderRadius:'var(--radius-md)',padding:'8px 10px'}}>
-                    <div style={{fontSize:10,color:'var(--text-muted)',textTransform:'uppercase',letterSpacing:'0.06em'}}>{k}</div>
-                    <div style={{fontSize:13,fontWeight:600,marginTop:2}}>{v}</div>
+                  <div key={String(k)} className="permit-detail-cell">
+                    <div className="permit-detail-label">{k}</div>
+                    <div className="permit-detail-val">{v}</div>
                   </div>
                 ))}
               </div>
 
               {/* Compliance */}
               {selected.status === 'active' && (
-                <div style={{marginBottom:16}}>
+                <div className="permit-section">
                   <div className="flex justify-between items-center mb-2">
                     <div className="label">Compliance Score</div>
-                    <span style={{fontSize:18,fontWeight:800,color:selected.compliance>=80?'#22C55E':selected.compliance>=60?'#F59E0B':'#EF4444'}}>
+                    <span className="compliance-score-val font-mono" style={{ color: selected.compliance >= 80 ? 'var(--success)' : selected.compliance >= 60 ? 'var(--warning)' : 'var(--critical)' }}>
                       {selected.compliance}%
                     </span>
                   </div>
-                  <div className="progress-bar" style={{height:8}}>
-                    <div className="progress-bar-fill" style={{
-                      width:`${selected.compliance}%`,
-                      background:selected.compliance>=80?'#22C55E':selected.compliance>=60?'#F59E0B':'#EF4444'
-                    }}/>
+                  <div className="progress-bar">
+                    <div 
+                      className="progress-bar-fill" 
+                      style={{
+                        width: `${selected.compliance}%`,
+                        background: selected.compliance >= 80 ? 'var(--success)' : selected.compliance >= 60 ? 'var(--warning)' : 'var(--critical)'
+                      }}
+                    />
                   </div>
                 </div>
               )}
 
               {/* Workers */}
               {selected.workers.length > 0 && (
-                <div style={{marginBottom:16}}>
+                <div className="permit-section">
                   <div className="label mb-2">Assigned Workers</div>
                   {selected.workers.map(wid => {
                     const w = workers.find(x => x.id === wid);
                     if (!w) return null;
                     return (
-                      <div key={wid} className="panel-worker-row" style={{cursor:'pointer'}} onClick={() => onNavigate('workers')}>
-                        <div className="worker-avatar-sm" style={{width:28,height:28,borderRadius:'50%',background:'linear-gradient(135deg,#3B82F6,#8B5CF6)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:9,fontWeight:700,color:'white',flexShrink:0}}>
+                      <div key={wid} className="panel-worker-row" onClick={() => onNavigate('workers')}>
+                        <div className="worker-avatar-sm">
                           {w.name.split(' ').map(n=>n[0]).join('')}
                         </div>
                         <div>
-                          <div style={{fontSize:12,fontWeight:600}}>{w.name}</div>
-                          <div style={{fontSize:10,color:'var(--text-muted)'}}>{w.role} · {w.ppeStatus}</div>
+                          <div className="worker-row-name">{w.name}</div>
+                          <div className="worker-row-role">{w.role} · {w.ppeStatus}</div>
                         </div>
                         <span className={`badge badge-${w.ppeStatus==='compliant'?'success':w.ppeStatus==='partial'?'warning':'critical'}`}>
                           PPE {w.ppeStatus}
@@ -213,38 +216,38 @@ const ActivePermits: React.FC<ActivePermitsProps> = ({ onNavigate }) => {
               )}
 
               {/* Equipment */}
-              <div style={{marginBottom:16}}>
+              <div className="permit-section">
                 <div className="label mb-2">Equipment</div>
                 {selected.equipment.map(eq => (
-                  <div key={eq} style={{display:'flex',alignItems:'center',gap:6,padding:'7px 10px',background:'var(--bg-primary)',border:'1px solid var(--border-color)',borderRadius:'var(--radius-md)',marginBottom:4,fontSize:12}}>
-                    <Zap size={11} color="#94A3B8" /> {eq}
+                  <div key={eq} className="equipment-tag">
+                    <Zap size={11} color="var(--text-muted)" /> {eq}
                   </div>
                 ))}
               </div>
 
               {/* AI Recommendation */}
-              <div className="ai-recommendation" style={{marginBottom:16}}>
+              <div className="ai-recommendation">
                 <div className="ai-rec-title"><Brain size={12}/> AI Recommendation</div>
                 <p>{selected.aiRecommendation}</p>
               </div>
 
               {/* Actions */}
               {selected.status === 'active' && (
-                <div className="flex gap-2">
-                  <button className="btn btn-danger flex-1" style={{justifyContent:'center'}}>
+                <div className="permit-actions">
+                  <button className="btn btn-danger flex-1 center">
                     Suspend Permit
                   </button>
-                  <button className="btn btn-ghost flex-1" style={{justifyContent:'center'}} onClick={() => onNavigate('ai-risk')}>
+                  <button className="btn btn-ghost flex-1 center" onClick={() => onNavigate('ai-risk')}>
                     <Brain size={13}/> Risk Analysis
                   </button>
                 </div>
               )}
               {selected.status === 'pending' && (
-                <div className="flex gap-2">
-                  <button className="btn btn-primary flex-1" style={{justifyContent:'center', background:'#22C55E'}}>
+                <div className="permit-actions">
+                  <button className="btn btn-success-action flex-1 center">
                     Approve Permit
                   </button>
-                  <button className="btn btn-danger flex-1" style={{justifyContent:'center'}}>
+                  <button className="btn btn-danger flex-1 center">
                     Reject
                   </button>
                 </div>

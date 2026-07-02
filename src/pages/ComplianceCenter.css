@@ -1,0 +1,94 @@
+/* ============================================================
+   Compliance Center CSS Styles
+   ============================================================ */
+
+.compliance-stat-card {
+  position: relative;
+  overflow: hidden;
+  transition: transform var(--transition), border-color var(--transition), box-shadow var(--transition);
+}
+
+/* Subtle accent line on top */
+.compliance-stat-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 2px;
+  background: var(--border-color);
+}
+
+.compliance-stat-card.compliance-blue::before {
+  background: var(--blue);
+}
+
+.compliance-stat-card.compliance-success::before {
+  background: var(--success);
+}
+
+.compliance-stat-card.compliance-warning::before {
+  background: var(--warning);
+}
+
+.compliance-stat-card.compliance-critical::before {
+  background: var(--critical);
+}
+
+.compliance-metric-value {
+  font-size: 28px;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  font-family: var(--font-mono);
+  margin-top: 4px;
+  line-height: 1;
+}
+
+.compliance-checklist-container {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.compliance-checklist-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  transition: border-color var(--transition), background-color var(--transition), box-shadow var(--transition);
+}
+
+.compliance-checklist-item:hover {
+  border-color: rgba(59, 130, 246, 0.25);
+  background: var(--card-bg-hover);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.compliance-check-info {
+  flex: 1;
+}
+
+.compliance-check-rule {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.compliance-check-evidence {
+  font-size: 11px;
+  color: var(--text-secondary);
+  margin-top: 2px;
+}
+
+.compliance-check-right {
+  text-align: right;
+}
+
+.compliance-check-zone {
+  font-size: 10px;
+  color: var(--text-muted);
+  margin-top: 4px;
+}
