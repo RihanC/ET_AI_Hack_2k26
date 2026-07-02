@@ -281,6 +281,13 @@
   color: var(--text-primary);
 }
 
+/* Logout button — same size, red on hover */
+.logout-btn:hover {
+  border-color: rgba(239, 68, 68, 0.3);
+  color: var(--critical);
+  background: rgba(239, 68, 68, 0.05);
+}
+
 /* User Button */
 .user-btn {
   display: flex;

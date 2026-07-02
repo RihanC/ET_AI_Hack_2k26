@@ -4,6 +4,7 @@ import Header from './components/layout/Header';
 import Sidebar from './components/layout/Sidebar';
 import AICopilot from './components/layout/AICopilot';
 import { useLiveData } from './hooks/useLiveData';
+import Login from './pages/Login';
 
 // Pages
 import Dashboard from './pages/Dashboard';
@@ -17,6 +18,7 @@ import ComplianceCenter from './pages/ComplianceCenter';
 import ReportsAnalytics from './pages/ReportsAnalytics';
 
 const App: React.FC = () => {
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [activePage, setActivePage] = useState<PageId>('dashboard');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const data = useLiveData();
@@ -24,6 +26,15 @@ const App: React.FC = () => {
   const handleNavigate = (page: string) => {
     setActivePage(page as PageId);
   };
+
+  const handleLogout = () => {
+    setIsLoggedIn(false);
+    setActivePage('dashboard');
+  };
+
+  if (!isLoggedIn) {
+    return <Login onLoginSuccess={() => setIsLoggedIn(true)} />;
+  }
 
   return (
     <div className="app-shell">
@@ -40,6 +51,7 @@ const App: React.FC = () => {
           warningAlerts={data.liveAlerts.filter(a => a.severity === 'warning' && !a.acknowledged).length}
           plantHealth={data.liveKPI.plantHealth}
           onNavigate={handleNavigate}
+          onLogout={handleLogout}
         />
         <main className="page-content">
           {activePage === 'dashboard' && <Dashboard liveKPI={data.liveKPI} liveAlerts={data.liveAlerts} onNavigate={handleNavigate} />}

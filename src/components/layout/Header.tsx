@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { format } from 'date-fns';
 import {
   Activity, Search, Bell, History, Shield, ChevronDown,
-  Wifi, AlertTriangle, CheckCircle
+  Wifi, AlertTriangle, CheckCircle, LogOut
 } from 'lucide-react';
 import './Header.css';
 
@@ -13,9 +13,10 @@ interface HeaderProps {
   plantHealth: number;
   onSearch?: (query: string) => void;
   onNavigate?: (page: string) => void;
+  onLogout?: () => void;
 }
 
-const Header: React.FC<HeaderProps> = ({ currentTime, criticalAlerts, warningAlerts, plantHealth, onNavigate }) => {
+const Header: React.FC<HeaderProps> = ({ currentTime, criticalAlerts, warningAlerts, plantHealth, onNavigate, onLogout }) => {
   const [searchValue, setSearchValue] = useState('');
   const [alertPulse, setAlertPulse] = useState(false);
 
@@ -124,6 +125,16 @@ const Header: React.FC<HeaderProps> = ({ currentTime, criticalAlerts, warningAle
             <span className="user-role">Safety Officer</span>
           </div>
           <ChevronDown size={12} color="var(--text-muted)" />
+        </button>
+
+        {/* Logout */}
+        <button
+          className="btn-icon-header logout-btn"
+          id="logout-btn"
+          title="Sign out"
+          onClick={() => onLogout?.()}
+        >
+          <LogOut size={14} />
         </button>
       </div>
     </header>
