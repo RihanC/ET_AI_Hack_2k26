@@ -125,7 +125,7 @@ const RESPONSES = {
   }
 };
 
-function getResponse(msg: string): typeof RESPONSES.default {
+function getResponse(msg: string): { text: string; actions: { label: string; type: 'info' | 'warning' | 'danger' | 'success' }[] } {
   const l = msg.toLowerCase();
 
   if (l.match(/\b(hi|hello|hey|greet|start|help|what can)\b/)) return RESPONSES.greeting;

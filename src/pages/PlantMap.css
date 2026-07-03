@@ -61,7 +61,6 @@
   color: var(--text-primary);
 }
 
-/* Canvas */
 .plant-map-canvas {
   flex: 1;
   overflow: hidden;
@@ -71,6 +70,10 @@
   align-items: center;
   justify-content: center;
   cursor: grab;
+}
+
+.plant-map-canvas.mode-3d {
+  display: block;
 }
 
 .plant-map-canvas.dragging {
@@ -348,4 +351,45 @@
   display: grid;
   grid-template-rows: auto 1fr auto;
   position: relative;
+}
+
+/* View Mode Toggle */
+.view-mode-toggle {
+  display: flex;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 2px;
+}
+
+.view-mode-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border-radius: calc(var(--radius-md) - 2px);
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 600;
+  font-family: var(--font);
+  cursor: pointer;
+  transition: all var(--transition);
+}
+
+.view-mode-btn.active {
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+.view-mode-btn:hover:not(.active) {
+  color: var(--text-primary);
+}
+
+/* 3D Canvas element wrapper spacing */
+.plant-map-canvas canvas {
+  display: block;
+  outline: none;
 }

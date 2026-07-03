@@ -421,7 +421,7 @@ const ReportModal: React.FC<ReportModalProps> = ({ report, onClose }) => {
               <Tooltip contentStyle={{ background: '#0F1322', border: '1px solid #171E31', borderRadius: 8, fontSize: 11 }} />
               <Bar dataKey="value" name="% of Threshold" radius={[0,4,4,0]}
                 fill="#F59E0B"
-                label={{ position: 'right', fontSize: 9, fill: '#475569', formatter: (v: number) => `${v}%` }}
+                label={{ position: 'right', fontSize: 9, fill: '#475569', formatter: (v: any) => `${v}%` }}
               />
             </BarChart>
           </ResponsiveContainer>
