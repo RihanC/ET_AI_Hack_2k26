@@ -1,23 +1,51 @@
-# Environment variables
+# ==========================
+# Environment Variables
+# ==========================
 **/.env
+**/.env.local
+**/.env.development
+**/.env.production
 
-# Dependencies
+# Keep example env files
+!**/.env.example
+
+# ==========================
+# Node Modules
+# ==========================
 **/node_modules/
 
-# Prisma generated files (optional)
-prisma/dev.db
+# ==========================
+# Build Output
+# ==========================
+**/dist/
+**/build/
+**/.vite/
 
+# ==========================
 # Logs
+# ==========================
 *.log
+logs/
 
-# Build output
-dist/
-build/
+# ==========================
+# Prisma
+# ==========================
+**/prisma/dev.db
 
-# OS files
+# ==========================
+# OS Files
+# ==========================
 .DS_Store
 Thumbs.db
 
+# ==========================
 # IDE
+# ==========================
 .vscode/
 .idea/
+
+# ==========================
+# Temporary files
+# ==========================
+*.tmp
+*.temp
