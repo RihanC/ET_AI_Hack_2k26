@@ -1,3 +1,1 @@
-Work in Progress........
-
-Fork the repo to contribute
+Going to enhance the live map

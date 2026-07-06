@@ -8,6 +8,7 @@ import {
   MapPin, Activity, Brain, ChevronDown, Rotate3d
 } from 'lucide-react';
 import { sensors, workers, permits, alerts } from '../data/mockData';
+import type { Worker as PlantWorker, Sensor as PlantSensor } from '../data/mockData';
 import './PlantMap.css';
 
 interface PlantMapProps {
@@ -300,6 +301,262 @@ const CameraController: React.FC<{ selected: SelectedObject | null; controlsRef:
   return null;
 };
 
+// Waypoint-based complex evacuation routing network
+const ZONE_EVACUATION_ROUTES: Record<string, [number, number][]> = {
+  A: [[120, 95], [180, 150], [180, 270], [300, 365], [300, 375]],
+  B: [[285, 85], [350, 135], [345, 270], [300, 365], [300, 375]],
+  C: [[425, 82.5], [485, 82.5], [560, 135], [580, 200]],
+  D: [[535, 42.5], [535, 135], [580, 200]],
+  E: [[105, 217.5], [30, 260], [20, 360]],
+  F: [[265, 210], [265, 275], [300, 365], [300, 375]],
+  G: [[455, 205], [565, 205], [580, 200]],
+  H: [[97.5, 322.5], [150, 365], [20, 360]],
+  I: [[230, 322.5], [300, 365], [300, 375]],
+  CR: [[432.5, 322.5], [345, 365], [300, 365], [300, 375]],
+};
+
+const EvacuationPath3D: React.FC<{ zoneId: string }> = ({ zoneId }) => {
+  const route = ZONE_EVACUATION_ROUTES[zoneId];
+  if (!route) return null;
+
+  const points3d = route.map(([x, y]) => {
+    const [x3d, _, z3d] = to3DCoords(x, y);
+    return [x3d, 0.08, z3d] as [number, number, number];
+  });
+
+  const lineRef = useRef<any>(null);
+
+  useFrame(({ clock }) => {
+    if (lineRef.current) {
+      lineRef.current.material.dashOffset = -clock.getElapsedTime() * 1.5;
+    }
+  });
+
+  const exitNode = route[route.length - 1];
+  const [exx, __, exz] = to3DCoords(exitNode[0], exitNode[1]);
+
+  return (
+    <group>
+      <Line
+        ref={lineRef}
+        points={points3d}
+        color="#22C55E"
+        lineWidth={3.2}
+        dashed
+        dashSize={0.5}
+        gapSize={0.25}
+      />
+      <mesh position={[exx, 0.06, exz]} rotation={[-Math.PI / 2, 0, 0]}>
+        <ringGeometry args={[0.2, 0.4, 16]} />
+        <meshBasicMaterial color="#22C55E" transparent opacity={0.7} side={THREE.DoubleSide} />
+      </mesh>
+    </group>
+  );
+};
+
+// Context Menu displayed in 3D using Html
+const ContextMenu3D: React.FC<{
+  selected: SelectedObject;
+  workers: PlantWorker[];
+  sensors: PlantSensor[];
+  zones: typeof ZONES;
+  onAction: (msg: string) => void;
+  onClose: () => void;
+}> = ({ selected, workers, sensors, zones, onAction, onClose }) => {
+  let pos: [number, number, number] = [0, 2, 0];
+  let title = '';
+  let details = '';
+  let actions: { label: string; action: string }[] = [];
+
+  if (selected.type === 'zone') {
+    const zone = zones.find(z => z.id === selected.id);
+    if (zone) {
+      const height3d = zoneHeights[zone.id] || 1.5;
+      const [cx, _, cz] = to3DCoords(zone.x + zone.w / 2, zone.y + zone.h / 2);
+      pos = [cx, height3d + 0.6, cz];
+      title = zone.label;
+      const zoneWorkers = workers.filter(w => w.zone.startsWith(`Zone ${zone.id}`) || zone.label === w.zone);
+      details = `Status: ${zone.risk.toUpperCase()} | Workers: ${zoneWorkers.length}`;
+      actions = [
+        { label: '💨 Fan Override', action: `Ventilation fans overridden to high-capacity mode in ${zone.label}!` },
+        { label: '🔕 Mute Sirens', action: `Active safety sirens temporarily silenced for ${zone.label}.` }
+      ];
+    }
+  } else if (selected.type === 'worker') {
+    const worker = workers.find(w => w.id === selected.id);
+    if (worker) {
+      const zone = ZONES.find(z => worker.zone.startsWith(`Zone ${z.id}`) || z.label === worker.zone);
+      if (zone) {
+        const idx = zone.workers.indexOf(worker.id);
+        const wx = zone.x + 18 + (idx >= 0 ? (idx % 3) * 22 : 10);
+        const wy = zone.y + 35 + (idx >= 0 ? Math.floor(idx / 3) * 22 : 10);
+        const [wx3d, _, wy3d] = to3DCoords(wx, wy);
+        pos = [wx3d, 1.8, wy3d];
+      }
+      title = worker.name;
+      details = `${worker.role} | HR: ${worker.heartRate} bpm | Gas Exposure: ${worker.gasExposure} ppm`;
+      actions = [
+        { label: '📳 Buzz Wearable', action: `Haptic warning pulse successfully sent to ${worker.name}'s badge.` },
+        { label: '📞 Radio Channel', action: `Connecting to ${worker.name}'s digital UHF voice channel...` }
+      ];
+    }
+  } else if (selected.type === 'sensor') {
+    const s = sensors.find(x => x.id === selected.id);
+    if (s) {
+      const zone = ZONES.find(z => z.sensorIds.includes(s.id));
+      if (zone) {
+        const idx = zone.sensorIds.indexOf(s.id);
+        const sx = zone.x + 18 + idx * 32;
+        const sy = zone.y + zone.h - 16;
+        const [sx3d, _, sy3d] = to3DCoords(sx, sy);
+        pos = [sx3d, 1.3, sy3d];
+      }
+      title = s.name;
+      details = `Type: ${s.type.toUpperCase()} | Live Reading: ${s.value} ${s.unit}`;
+      actions = [
+        { label: '⚙️ Auto Calibrate', action: `Calibrating sensor ${s.id} (${s.name}). Verification passed.` },
+        { label: '📊 Purge Buffers', action: `Purging cached telemetry logs from sensor ${s.id}.` }
+      ];
+    }
+  }
+
+  return (
+    <Html position={pos} center distanceFactor={14} style={{ zIndex: 1000 }}>
+      <div className="glass-context-menu">
+        <div className="menu-header">
+          <span className="menu-title">{title}</span>
+          <button className="menu-close-btn" onClick={(e) => { e.stopPropagation(); onClose(); }}>
+            <X size={10} />
+          </button>
+        </div>
+        <div className="menu-details">{details}</div>
+        <div className="menu-actions">
+          {actions.map((act, i) => (
+            <button
+              key={i}
+              className="menu-action-btn"
+              onClick={(e) => {
+                e.stopPropagation();
+                onAction(act.action);
+              }}
+            >
+              {act.label}
+            </button>
+          ))}
+        </div>
+      </div>
+    </Html>
+  );
+};
+
+// Gas Dispersion Plumes
+const GasPlume3D: React.FC<{ position: [number, number, number]; color: string }> = ({ position, color }) => {
+  const count = 10;
+  
+  const particles = useMemo(() => {
+    return Array.from({ length: count }).map((_, i) => ({
+      offset: i * 0.45,
+      speedFactor: 0.7 + Math.random() * 0.5,
+      randY: (Math.random() - 0.5) * 0.4,
+      randZ: (Math.random() - 0.5) * 0.4,
+    }));
+  }, [position]);
+
+  const refs = useRef<(THREE.Mesh | null)[]>([]);
+
+  useFrame(({ clock }) => {
+    const elapsed = clock.getElapsedTime();
+    particles.forEach((p, idx) => {
+      const mesh = refs.current[idx];
+      if (!mesh) return;
+
+      const progress = ((elapsed * p.speedFactor + p.offset) % 4.5);
+      
+      mesh.position.x = position[0] + progress * 1.8;
+      mesh.position.y = position[1] + p.randY * (1.0 + progress * 0.4);
+      mesh.position.z = position[2] + progress * 0.9 + p.randZ * (1.0 + progress * 0.4);
+
+      const scaleVal = 1.0 + progress * 1.2;
+      mesh.scale.set(scaleVal, scaleVal, scaleVal);
+
+      if (mesh.material) {
+        (mesh.material as THREE.MeshBasicMaterial).opacity = Math.max(0, 0.22 * (1 - progress / 4.5));
+      }
+    });
+  });
+
+  return (
+    <group>
+      {particles.map((_, i) => (
+        <mesh
+          key={i}
+          ref={(el) => {
+            refs.current[i] = el;
+          }}
+          position={position}
+        >
+          <sphereGeometry args={[0.2, 8, 8]} />
+          <meshBasicMaterial color={color} transparent opacity={0.25} depthWrite={false} />
+        </mesh>
+      ))}
+    </group>
+  );
+};
+
+// Wind Vector Lines
+const WindLines3D: React.FC = () => {
+  const lineCount = 6;
+  const refs = useRef<(THREE.LineSegments | null)[]>([]);
+  
+  const windFlows = useMemo(() => {
+    return Array.from({ length: lineCount }).map((_, i) => ({
+      x: (Math.random() - 0.5) * 45,
+      y: 2.8 + Math.random() * 1.2,
+      z: (Math.random() - 0.5) * 32,
+      length: 2.5 + Math.random() * 3.5,
+      speed: 1.8 + Math.random() * 1.2
+    }));
+  }, []);
+
+  useFrame(({ clock }) => {
+    const elapsed = clock.getElapsedTime();
+    windFlows.forEach((flow, idx) => {
+      const mesh = refs.current[idx];
+      if (!mesh) return;
+
+      const t = (elapsed * flow.speed) % 55;
+      let currentX = flow.x + t;
+      let currentZ = flow.z + t * 0.5;
+
+      if (currentX > 25) currentX = -25;
+      if (currentZ > 18) currentZ = -18;
+
+      mesh.position.set(currentX, flow.y, currentZ);
+    });
+  });
+
+  return (
+    <group>
+      {windFlows.map((flow, i) => (
+        <lineSegments
+          key={i}
+          ref={(el) => {
+            refs.current[i] = el as any;
+          }}
+        >
+          <bufferGeometry>
+            <float32BufferAttribute
+              attach="attributes-position"
+              args={[new Float32Array([0, 0, 0, flow.length, 0, flow.length * 0.5]), 3]}
+            />
+          </bufferGeometry>
+          <lineBasicMaterial color="#94A3B8" transparent opacity={0.18} />
+        </lineSegments>
+      ))}
+    </group>
+  );
+};
+
 interface Zone3DProps {
   zone: typeof ZONES[0];
   isSelected: boolean;
@@ -512,11 +769,12 @@ interface Worker3DProps {
   worker: typeof workers[0];
   index: number;
   isSelected: boolean;
+  zones: typeof ZONES;
   onClick: () => void;
 }
 
-const Worker3D: React.FC<Worker3DProps> = ({ worker, index, isSelected, onClick }) => {
-  const zone = ZONES.find(z => z.workers.includes(worker.id));
+const Worker3D: React.FC<Worker3DProps> = ({ worker, index, isSelected, zones, onClick }) => {
+  const zone = zones.find(z => worker.zone.startsWith(`Zone ${z.id}`) || z.label === worker.zone);
   if (!zone) return null;
 
   // Render spaced out inside their active zone
@@ -588,17 +846,15 @@ const Worker3D: React.FC<Worker3DProps> = ({ worker, index, isSelected, onClick 
 };
 
 interface Sensor3DProps {
-  sensorId: string;
+  sensor: PlantSensor;
   zone: typeof ZONES[0];
   index: number;
   isSelected: boolean;
   onClick: () => void;
 }
 
-const Sensor3D: React.FC<Sensor3DProps> = ({ sensorId, zone, index, isSelected, onClick }) => {
-  const s = sensors.find(x => x.id === sensorId);
-  if (!s) return null;
-
+const Sensor3D: React.FC<Sensor3DProps> = ({ sensor, zone, index, isSelected, onClick }) => {
+  const s = sensor;
   const sx = zone.x + 18 + index * 32;
   const sy = zone.y + zone.h - 16;
   const [sx3d, _, sy3d] = to3DCoords(sx, sy);
@@ -725,6 +981,83 @@ const Exit3D: React.FC<{ exit: typeof EXITS[0] }> = ({ exit }) => {
   );
 };
 
+const RadarMiniMap: React.FC<{
+  workers: PlantWorker[];
+  zones: typeof ZONES;
+  selected: SelectedObject | null;
+  onSelect: (sel: SelectedObject) => void;
+}> = ({ workers, zones, selected, onSelect }) => {
+  return (
+    <div className="radar-minimap-hud">
+      <div className="radar-header">
+        <div className="radar-status-dot green-pulse" />
+        <span>TWIN HUD RADAR</span>
+      </div>
+      <div className="radar-scope">
+        <div className="radar-sweep" />
+        <div className="radar-grid-circle circle-1" />
+        <div className="radar-grid-circle circle-2" />
+        <div className="radar-grid-circle circle-3" />
+        <div className="radar-crosshair-x" />
+        <div className="radar-crosshair-y" />
+        
+        {/* Render zone boundaries as simplified shapes */}
+        {zones.map(z => {
+          const scaleX = 140 / 590;
+          const scaleY = 90 / 375;
+          return (
+            <div
+              key={z.id}
+              className={`radar-zone-box ${selected?.type === 'zone' && selected.id === z.id ? 'active' : ''}`}
+              style={{
+                left: `${z.x * scaleX}px`,
+                top: `${z.y * scaleY}px`,
+                width: `${z.w * scaleX}px`,
+                height: `${z.h * scaleY}px`,
+                borderColor: riskColors[z.risk]
+              }}
+              onClick={(e) => {
+                e.stopPropagation();
+                onSelect({ type: 'zone', id: z.id });
+              }}
+            />
+          );
+        })}
+
+        {/* Render worker indicators */}
+        {workers.map(w => {
+          const zone = zones.find(z => w.zone.startsWith(`Zone ${z.id}`) || z.label === w.zone);
+          if (!zone) return null;
+          
+          const idx = zone.workers.indexOf(w.id);
+          const wx = zone.x + 18 + (idx >= 0 ? (idx % 3) * 22 : 10);
+          const wy = zone.y + 35 + (idx >= 0 ? Math.floor(idx / 3) * 22 : 10);
+          
+          const scaleX = 140 / 590;
+          const scaleY = 90 / 375;
+          
+          return (
+            <div
+              key={w.id}
+              className={`radar-worker-dot ${selected?.type === 'worker' && selected.id === w.id ? 'selected' : ''}`}
+              style={{
+                left: `${wx * scaleX}px`,
+                top: `${wy * scaleY}px`,
+                backgroundColor: w.riskLevel === 'critical' || w.riskLevel === 'high' ? '#EF4444' : '#3B82F6'
+              }}
+              onClick={(e) => {
+                e.stopPropagation();
+                onSelect({ type: 'worker', id: w.id });
+              }}
+              title={w.name}
+            />
+          );
+        })}
+      </div>
+    </div>
+  );
+};
+
 const PlantMap: React.FC<PlantMapProps> = ({ onNavigate }) => {
   const [viewMode, setViewMode] = useState<'3d' | '2d'>('3d');
   const [activeLayers, setActiveLayers] = useState<Set<LayerKey>>(
@@ -736,6 +1069,79 @@ const PlantMap: React.FC<PlantMapProps> = ({ onNavigate }) => {
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const controlsRef = useRef<any>(null);
+
+  const [timeSliderVal, setTimeSliderVal] = useState<number>(12);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  const triggerToast = (msg: string) => {
+    setToastMessage(msg);
+    setTimeout(() => {
+      setToastMessage(prev => prev === msg ? null : prev);
+    }, 4500);
+  };
+
+  // Generate deterministic simulated data based on timeOffset (0 to 12)
+  const getSimulatedData = (timeOffset: number) => {
+    if (timeOffset === 12) {
+      return {
+        workersList: workers,
+        sensorsList: sensors,
+        zonesList: ZONES
+      };
+    }
+
+    const seed = timeOffset;
+    
+    const simSensors = sensors.map(s => {
+      const factor = Math.sin(seed * 0.9 + s.id.charCodeAt(0)) * 0.45;
+      const newValue = parseFloat(Math.max(s.min, Math.min(s.max, s.value * (1 + factor * 0.25))).toFixed(1));
+      let status: 'online' | 'warning' | 'critical' = 'online';
+      if (newValue > s.threshold * 1.15) status = 'critical';
+      else if (newValue > s.threshold) status = 'warning';
+      
+      return {
+        ...s,
+        value: newValue,
+        status
+      };
+    });
+
+    const simZones = ZONES.map(z => {
+      const zoneSensors = simSensors.filter(s => z.sensorIds.includes(s.id));
+      const hasCritical = zoneSensors.some(s => s.status === 'critical');
+      const hasWarning = zoneSensors.some(s => s.status === 'warning');
+      const risk = hasCritical ? 'critical' as const : (hasWarning ? 'warning' as const : 'safe' as const);
+      return {
+        ...z,
+        risk
+      };
+    });
+
+    const simWorkers = workers.map(w => {
+      const zoneList = ['A', 'B', 'C', 'E', 'F', 'G', 'CR'];
+      const zoneIdx = Math.abs(Math.floor(Math.sin(seed * 1.3 + w.name.charCodeAt(0)) * zoneList.length)) % zoneList.length;
+      const newZoneId = zoneList[zoneIdx];
+      const newZoneLabel = ZONES.find(z => z.id === newZoneId)?.label || w.zone;
+
+      const hrFactor = Math.floor(Math.sin(seed * 2.1 + w.id.charCodeAt(0)) * 14);
+      const simulatedHR = Math.max(60, Math.min(130, w.heartRate + hrFactor));
+      
+      return {
+        ...w,
+        zone: newZoneLabel,
+        heartRate: simulatedHR,
+        riskLevel: simulatedHR > 105 ? 'critical' as const : (simulatedHR > 92 ? 'high' as const : (simulatedHR > 80 ? 'medium' as const : 'low' as const))
+      };
+    });
+
+    return {
+      sensorsList: simSensors,
+      zonesList: simZones,
+      workersList: simWorkers
+    };
+  };
+
+  const { sensorsList, zonesList, workersList } = useMemo(() => getSimulatedData(timeSliderVal), [timeSliderVal]);
 
   const handleMouseDown = (e: React.MouseEvent) => {
     setIsDragging(true);
@@ -759,9 +1165,9 @@ const PlantMap: React.FC<PlantMapProps> = ({ onNavigate }) => {
     });
   };
 
-  const selectedZone = selected?.type === 'zone' ? ZONES.find(z => z.id === selected.id) : null;
-  const selectedSensor = selected?.type === 'sensor' ? sensors.find(s => s.id === selected.id) : null;
-  const selectedWorker = selected?.type === 'worker' ? workers.find(w => w.id === selected.id) : null;
+  const selectedZone = selected?.type === 'zone' ? zonesList.find(z => z.id === selected.id) : null;
+  const selectedSensor = selected?.type === 'sensor' ? sensorsList.find(s => s.id === selected.id) : null;
+  const selectedWorker = selected?.type === 'worker' ? workersList.find(w => w.id === selected.id) : null;
 
   const liveEvents = [
     { time: '10:24:01', text: 'S007: O₂ level 18.1% — CRITICAL', sev: 'critical' },
@@ -879,7 +1285,7 @@ const PlantMap: React.FC<PlantMapProps> = ({ onNavigate }) => {
                 <Pipeline3D start={[480, 55]} end={[500, 42]} active={activeLayers.has('equipment')} />
 
                 {/* Zones */}
-                {ZONES.map(zone => (
+                {zonesList.map(zone => (
                   <Zone3D
                     key={zone.id}
                     zone={zone}
@@ -889,23 +1295,42 @@ const PlantMap: React.FC<PlantMapProps> = ({ onNavigate }) => {
                   />
                 ))}
 
-                {/* Volumetric Gas clouds inside warning/critical zones */}
-                {activeLayers.has('gas') && ZONES.map(zone => {
+                {/* Wind Vectors Overlay */}
+                <WindLines3D />
+
+                {/* Evacuation green arrow paths for warning/critical zones */}
+                {zonesList.map(zone => {
                   if (zone.risk === 'safe') return null;
-                  const height3d = zoneHeights[zone.id] || 1.5;
-                  const [cx, _, cz] = to3DCoords(zone.x + zone.w / 2, zone.y + zone.h / 2);
                   return (
-                    <GasCloud3D
-                      key={`gas-${zone.id}`}
-                      position={[cx, height3d / 2, cz]}
-                      size={[zone.w * scale * 0.9, height3d * 0.8, zone.h * scale * 0.9]}
-                      color={riskColors[zone.risk]}
+                    <EvacuationPath3D
+                      key={`evac-${zone.id}`}
+                      zoneId={zone.id}
                     />
                   );
                 })}
 
+                {/* Volumetric Gas clouds and dispersion plumes inside warning/critical zones */}
+                {activeLayers.has('gas') && zonesList.map(zone => {
+                  if (zone.risk === 'safe') return null;
+                  const height3d = zoneHeights[zone.id] || 1.5;
+                  const [cx, _, cz] = to3DCoords(zone.x + zone.w / 2, zone.y + zone.h / 2);
+                  return (
+                    <group key={`gas-group-${zone.id}`}>
+                      <GasCloud3D
+                        position={[cx, height3d / 2, cz]}
+                        size={[zone.w * scale * 0.9, height3d * 0.8, zone.h * scale * 0.9]}
+                        color={riskColors[zone.risk]}
+                      />
+                      <GasPlume3D
+                        position={[cx, height3d / 2, cz]}
+                        color={riskColors[zone.risk]}
+                      />
+                    </group>
+                  );
+                })}
+
                 {/* Thermal heat shimmers above hot zones */}
-                {activeLayers.has('temperature') && ZONES.map(zone => {
+                {activeLayers.has('temperature') && zonesList.map(zone => {
                   if (zone.id !== 'A' && zone.id !== 'C') return null;
                   const height3d = zoneHeights[zone.id] || 1.5;
                   const [cx, _, cz] = to3DCoords(zone.x + zone.w / 2, zone.y + zone.h / 2);
@@ -924,34 +1349,51 @@ const PlantMap: React.FC<PlantMapProps> = ({ onNavigate }) => {
                 {/* Selected Worker breadcrumb trail */}
                 {selected?.type === 'worker' && <WorkerTrail3D workerId={selected.id} />}
 
+                {/* Context Menu HUD display */}
+                {selected && (
+                  <ContextMenu3D
+                    selected={selected}
+                    workers={workersList}
+                    sensors={sensorsList}
+                    zones={zonesList}
+                    onAction={(msg) => triggerToast(msg)}
+                    onClose={() => setSelected(null)}
+                  />
+                )}
+
                 {/* Equipment */}
                 {activeLayers.has('equipment') && EQUIPMENT.map(eq => (
                   <Equipment3D key={eq.label} eq={eq} />
                 ))}
 
                 {/* Workers */}
-                {activeLayers.has('workers') && workers.map((w, i) => (
+                {activeLayers.has('workers') && workersList.map((w, i) => (
                   <Worker3D
                     key={w.id}
                     worker={w}
                     index={i}
                     isSelected={selected?.type === 'worker' && selected.id === w.id}
+                    zones={zonesList}
                     onClick={() => setSelected({ type: 'worker', id: w.id })}
                   />
                 ))}
 
                 {/* Sensors */}
-                {activeLayers.has('sensors') && ZONES.map(zone =>
-                  zone.sensorIds.slice(0, 2).map((sid, idx) => (
-                    <Sensor3D
-                      key={sid}
-                      sensorId={sid}
-                      zone={zone}
-                      index={idx}
-                      isSelected={selected?.type === 'sensor' && selected.id === sid}
-                      onClick={() => setSelected({ type: 'sensor', id: sid })}
-                    />
-                  ))
+                {activeLayers.has('sensors') && zonesList.map(zone =>
+                  zone.sensorIds.slice(0, 2).map((sid, idx) => {
+                    const sObj = sensorsList.find(x => x.id === sid);
+                    if (!sObj) return null;
+                    return (
+                      <Sensor3D
+                        key={sid}
+                        sensor={sObj}
+                        zone={zone}
+                        index={idx}
+                        isSelected={selected?.type === 'sensor' && selected.id === sid}
+                        onClick={() => setSelected({ type: 'sensor', id: sid })}
+                      />
+                    );
+                  })
                 )}
 
                 {/* CCTV Cameras */}
@@ -1021,9 +1463,10 @@ const PlantMap: React.FC<PlantMapProps> = ({ onNavigate }) => {
               ))}
 
               {/* Zones */}
-              {ZONES.map(zone => {
+              {zonesList.map(zone => {
                 const isSelected = selected?.type === 'zone' && selected.id === zone.id;
                 const color = riskColors[zone.risk];
+                const zoneWorkers = workersList.filter(w => w.zone.startsWith(`Zone ${zone.id}`) || zone.label === w.zone);
                 return (
                   <g key={zone.id} onClick={(e) => { e.stopPropagation(); setSelected({ type: 'zone', id: zone.id }); }}>
                     {/* Risk zone heatmap overlay */}
@@ -1063,18 +1506,18 @@ const PlantMap: React.FC<PlantMapProps> = ({ onNavigate }) => {
                     </text>
 
                     {/* Worker count dot */}
-                    {activeLayers.has('workers') && zone.workers.length > 0 && (
+                    {activeLayers.has('workers') && zoneWorkers.length > 0 && (
                       <g>
                         <circle cx={zone.x + 10} cy={zone.y + zone.h - 10} r="8" fill="#3B82F640" stroke="#3B82F6" strokeWidth="1"/>
                         <text x={zone.x + 10} y={zone.y + zone.h - 6} textAnchor="middle" fill="#3B82F6" fontSize="7" fontWeight="700">
-                          {zone.workers.length}W
+                          {zoneWorkers.length}W
                         </text>
                       </g>
                     )}
 
                     {/* Sensor indicators */}
                     {activeLayers.has('sensors') && zone.sensorIds.slice(0, 2).map((sid, si) => {
-                      const s = sensors.find(x => x.id === sid);
+                      const s = sensorsList.find(x => x.id === sid);
                       if (!s) return null;
                       const sc = s.status === 'critical' ? '#EF4444' : s.status === 'warning' ? '#F59E0B' : '#22C55E';
                       return (
@@ -1105,8 +1548,8 @@ const PlantMap: React.FC<PlantMapProps> = ({ onNavigate }) => {
               ))}
 
               {/* Workers */}
-              {activeLayers.has('workers') && workers.map((w, i) => {
-                const zone = ZONES.find(z => z.workers.includes(w.id));
+              {activeLayers.has('workers') && workersList.map((w, i) => {
+                const zone = zonesList.find(z => w.zone.startsWith(`Zone ${z.id}`) || z.label === w.zone);
                 if (!zone) return null;
                 const wx = zone.x + 20 + (i % 3) * 20;
                 const wy = zone.y + 35 + Math.floor(i / 3) * 20;
@@ -1163,6 +1606,56 @@ const PlantMap: React.FC<PlantMapProps> = ({ onNavigate }) => {
                 ))}
               </g>
             </svg>
+          )}
+
+          {/* Holographic HUD Mini-Map for 3D View */}
+          {viewMode === '3d' && (
+            <RadarMiniMap
+              workers={workersList}
+              zones={zonesList}
+              selected={selected}
+              onSelect={(sel) => setSelected(sel)}
+            />
+          )}
+
+          {/* Time-Travel playback simulation slider */}
+          <div className="time-travel-slider-container">
+            <button
+              className={`playback-btn ${timeSliderVal === 12 ? 'live' : ''}`}
+              onClick={() => setTimeSliderVal(12)}
+            >
+              {timeSliderVal === 12 ? '● LIVE' : '⏮ RESET'}
+            </button>
+            <div className="slider-wrapper">
+              <input
+                type="range"
+                min="0"
+                max="12"
+                value={timeSliderVal}
+                onChange={(e) => setTimeSliderVal(parseInt(e.target.value))}
+                className="time-slider"
+              />
+              <div className="time-markers">
+                <span className={timeSliderVal === 0 ? 'active' : ''}>-12h</span>
+                <span className={timeSliderVal === 3 ? 'active' : ''}>-9h</span>
+                <span className={timeSliderVal === 6 ? 'active' : ''}>-6h</span>
+                <span className={timeSliderVal === 9 ? 'active' : ''}>-3h</span>
+                <span className={timeSliderVal === 12 ? 'active' : ''}>Live</span>
+              </div>
+            </div>
+            <div className="slider-value-display">
+              {timeSliderVal === 12 ? 'Realtime Plant Telemetry' : `Timeline Playback: -${12 - timeSliderVal}h`}
+            </div>
+          </div>
+
+          {/* Global HUD Toast Notification */}
+          {toastMessage && (
+            <div className="hud-toast-container">
+              <div className="hud-toast animate-toast">
+                <Brain size={13} color="#06B6D4" />
+                <span>{toastMessage}</span>
+              </div>
+            </div>
           )}
         </div>
 
