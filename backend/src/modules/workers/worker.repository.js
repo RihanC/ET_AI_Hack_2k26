@@ -60,6 +60,25 @@ class WorkerRepository {
   async delete(id) {
     return prisma.worker.delete({ where: { id } });
   }
+
+  // ── Movement History ──────────────────────────────────
+
+  async createMovement(data) {
+    return prisma.workerMovement.create({ data });
+  }
+
+  async getMovementHistory(workerId, { skip = 0, take = 50 } = {}) {
+    const [data, total] = await Promise.all([
+      prisma.workerMovement.findMany({
+        where: { workerId },
+        orderBy: { timestamp: 'desc' },
+        skip,
+        take,
+      }),
+      prisma.workerMovement.count({ where: { workerId } }),
+    ]);
+    return { data, total };
+  }
 }
 
 export default new WorkerRepository();

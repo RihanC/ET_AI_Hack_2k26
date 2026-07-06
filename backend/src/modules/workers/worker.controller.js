@@ -31,6 +31,28 @@ class WorkerController {
     await workerService.delete(req.params.id);
     ApiResponse.ok(res, 'Worker deleted');
   });
+
+  updateBiometrics = asyncHandler(async (req, res) => {
+    const worker = await workerService.updateBiometrics(req.params.id, req.body);
+    ApiResponse.ok(res, 'Worker biometrics updated', worker);
+  });
+
+  assignZone = asyncHandler(async (req, res) => {
+    const { zoneId } = req.body;
+    const worker = await workerService.assignZone(req.params.id, zoneId);
+    ApiResponse.ok(res, 'Worker assigned to zone', worker);
+  });
+
+  getMovementHistory = asyncHandler(async (req, res) => {
+    const { data, pagination } = await workerService.getMovementHistory(req.params.id, req.query);
+    ApiResponse.paginated(res, 'Worker movement history retrieved', data, pagination);
+  });
+
+  updateStatus = asyncHandler(async (req, res) => {
+    const { status } = req.body;
+    const worker = await workerService.updateStatus(req.params.id, status);
+    ApiResponse.ok(res, 'Worker status updated', worker);
+  });
 }
 
 export default new WorkerController();

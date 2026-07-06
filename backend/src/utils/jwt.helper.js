@@ -6,7 +6,7 @@ import jwt from 'jsonwebtoken';
 import env from '../config/env.js';
 
 /**
- * Sign a JWT token with user payload.
+ * Sign a JWT access token with user payload.
  */
 export function signToken(payload) {
   return jwt.sign(payload, env.jwt.secret, {
@@ -15,14 +15,30 @@ export function signToken(payload) {
 }
 
 /**
- * Verify a JWT token.
+ * Sign a JWT refresh token with user payload.
+ */
+export function signRefreshToken(payload) {
+  return jwt.sign(payload, env.jwt.refreshSecret, {
+    expiresIn: env.jwt.refreshExpiresIn,
+  });
+}
+
+/**
+ * Verify a JWT access token.
  */
 export function verifyToken(token) {
   return jwt.verify(token, env.jwt.secret);
 }
 
 /**
- * Generate token pair for a user.
+ * Verify a JWT refresh token.
+ */
+export function verifyRefreshToken(token) {
+  return jwt.verify(token, env.jwt.refreshSecret);
+}
+
+/**
+ * Generate access + refresh token pair for a user.
  */
 export function generateAuthTokens(user) {
   const payload = {
@@ -32,6 +48,7 @@ export function generateAuthTokens(user) {
   };
 
   const accessToken = signToken(payload);
+  const refreshToken = signRefreshToken({ id: user.id });
 
-  return { accessToken };
+  return { accessToken, refreshToken };
 }

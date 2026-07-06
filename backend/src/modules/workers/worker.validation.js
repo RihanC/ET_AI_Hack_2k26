@@ -5,7 +5,7 @@
 import { z } from 'zod';
 
 const idParam = z.object({
-  id: z.string().uuid('Invalid worker ID'),
+  id: z.string().min(1, 'Invalid worker ID'),
 });
 
 const querySchema = z.object({
@@ -57,3 +57,34 @@ export const updateWorkerSchema = {
 };
 
 export const deleteWorkerSchema = { params: idParam };
+
+export const biometricsSchema = {
+  params: idParam,
+  body: z.object({
+    heartRate: z.number().positive().optional().nullable(),
+    gasExposure: z.number().min(0).optional().nullable(),
+    ppeStatus: z.enum(['COMPLIANT', 'NON_COMPLIANT', 'PARTIAL']).optional(),
+  }),
+};
+
+export const assignZoneSchema = {
+  params: idParam,
+  body: z.object({
+    zoneId: z.string().uuid('Invalid zone ID'),
+  }),
+};
+
+export const movementHistorySchema = {
+  params: idParam,
+  query: z.object({
+    page: z.coerce.number().int().positive().optional().default(1),
+    limit: z.coerce.number().int().positive().max(100).optional().default(50),
+  }),
+};
+
+export const updateStatusSchema = {
+  params: idParam,
+  body: z.object({
+    status: z.enum(['ACTIVE', 'BREAK', 'EMERGENCY', 'EVACUATED', 'OFF_SHIFT']),
+  }),
+};

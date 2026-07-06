@@ -4,7 +4,7 @@
 
 import userRepository from '../users/user.repository.js';
 import { hashPassword, comparePassword } from '../../utils/password.helper.js';
-import { generateAuthTokens } from '../../utils/jwt.helper.js';
+import { generateAuthTokens, verifyRefreshToken } from '../../utils/jwt.helper.js';
 import ApiError from '../../utils/ApiError.js';
 
 class AuthService {
@@ -61,6 +61,33 @@ class AuthService {
     const tokens = generateAuthTokens(userWithoutPassword);
 
     return { user: userWithoutPassword, ...tokens };
+  }
+
+  async refreshToken(refreshToken) {
+    if (!refreshToken) {
+      throw ApiError.unauthorized('Refresh token is required');
+    }
+
+    let decoded;
+    try {
+      decoded = verifyRefreshToken(refreshToken);
+    } catch (error) {
+      throw ApiError.unauthorized('Invalid or expired refresh token');
+    }
+
+    // Find user
+    const user = await userRepository.findById(decoded.id);
+    if (!user) {
+      throw ApiError.unauthorized('User not found');
+    }
+
+    if (!user.isActive) {
+      throw ApiError.unauthorized('Account is deactivated');
+    }
+
+    // Generate new token pair
+    const tokens = generateAuthTokens(user);
+    return { user, ...tokens };
   }
 
   async getProfile(userId) {

@@ -4,12 +4,13 @@
 
 import { Router } from 'express';
 import timelineController from './timeline.controller.js';
-import { authenticate } from '../../middlewares/auth.middleware.js';
+import { authenticate, authorize } from '../../middlewares/auth.middleware.js';
 import validate from '../../middlewares/validate.middleware.js';
 import {
   getTimelineSchema, getTimelineByIdSchema,
   createTimelineSchema, updateTimelineSchema, deleteTimelineSchema,
 } from './timeline.validation.js';
+import { ROLES_MANAGEMENT } from '../../utils/constants.js';
 
 const router = Router();
 
@@ -65,7 +66,7 @@ router.get('/:id', authenticate, validate(getTimelineByIdSchema), timelineContro
  *       201:
  *         description: Timeline event created
  */
-router.post('/', authenticate, validate(createTimelineSchema), timelineController.create);
+router.post('/', authenticate, authorize(...ROLES_MANAGEMENT), validate(createTimelineSchema), timelineController.create);
 
 /**
  * @swagger
@@ -82,7 +83,7 @@ router.post('/', authenticate, validate(createTimelineSchema), timelineControlle
  *       200:
  *         description: Timeline event updated
  */
-router.put('/:id', authenticate, validate(updateTimelineSchema), timelineController.update);
+router.put('/:id', authenticate, authorize(...ROLES_MANAGEMENT), validate(updateTimelineSchema), timelineController.update);
 
 /**
  * @swagger
@@ -99,6 +100,6 @@ router.put('/:id', authenticate, validate(updateTimelineSchema), timelineControl
  *       200:
  *         description: Timeline event deleted
  */
-router.delete('/:id', authenticate, validate(deleteTimelineSchema), timelineController.delete);
+router.delete('/:id', authenticate, authorize(...ROLES_MANAGEMENT), validate(deleteTimelineSchema), timelineController.delete);
 
 export default router;

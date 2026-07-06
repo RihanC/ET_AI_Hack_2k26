@@ -6,7 +6,7 @@ import { Router } from 'express';
 import authController from './auth.controller.js';
 import { authenticate } from '../../middlewares/auth.middleware.js';
 import validate from '../../middlewares/validate.middleware.js';
-import { registerSchema, loginSchema } from './auth.validation.js';
+import { registerSchema, loginSchema, refreshTokenSchema } from './auth.validation.js';
 
 const router = Router();
 
@@ -51,6 +51,31 @@ router.post('/register', validate(registerSchema), authController.register);
  *         description: Invalid credentials
  */
 router.post('/login', validate(loginSchema), authController.login);
+
+/**
+ * @swagger
+ * /auth/refresh:
+ *   post:
+ *     summary: Refresh access token using refresh token
+ *     tags: [Auth]
+ *     security: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [refreshToken]
+ *             properties:
+ *               refreshToken:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Token refreshed
+ *       401:
+ *         description: Invalid refresh token
+ */
+router.post('/refresh', validate(refreshTokenSchema), authController.refresh);
 
 /**
  * @swagger

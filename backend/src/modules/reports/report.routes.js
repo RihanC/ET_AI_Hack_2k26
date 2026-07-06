@@ -4,12 +4,13 @@
 
 import { Router } from 'express';
 import reportController from './report.controller.js';
-import { authenticate } from '../../middlewares/auth.middleware.js';
+import { authenticate, authorize } from '../../middlewares/auth.middleware.js';
 import validate from '../../middlewares/validate.middleware.js';
 import {
   getReportsSchema, getReportByIdSchema,
   createReportSchema, updateReportSchema, deleteReportSchema,
 } from './report.validation.js';
+import { ROLES_MANAGEMENT, ROLES_OPERATIONAL } from '../../utils/constants.js';
 
 const router = Router();
 
@@ -39,7 +40,7 @@ const router = Router();
  *       200:
  *         description: Reports retrieved
  */
-router.get('/', authenticate, validate(getReportsSchema), reportController.getAll);
+router.get('/', authenticate, authorize(...ROLES_OPERATIONAL), validate(getReportsSchema), reportController.getAll);
 
 /**
  * @swagger
@@ -56,7 +57,7 @@ router.get('/', authenticate, validate(getReportsSchema), reportController.getAl
  *       200:
  *         description: Report retrieved
  */
-router.get('/:id', authenticate, validate(getReportByIdSchema), reportController.getById);
+router.get('/:id', authenticate, authorize(...ROLES_OPERATIONAL), validate(getReportByIdSchema), reportController.getById);
 
 /**
  * @swagger
@@ -68,7 +69,7 @@ router.get('/:id', authenticate, validate(getReportByIdSchema), reportController
  *       201:
  *         description: Report created
  */
-router.post('/', authenticate, validate(createReportSchema), reportController.create);
+router.post('/', authenticate, authorize(...ROLES_MANAGEMENT), validate(createReportSchema), reportController.create);
 
 /**
  * @swagger
@@ -85,7 +86,7 @@ router.post('/', authenticate, validate(createReportSchema), reportController.cr
  *       200:
  *         description: Report updated
  */
-router.put('/:id', authenticate, validate(updateReportSchema), reportController.update);
+router.put('/:id', authenticate, authorize(...ROLES_MANAGEMENT), validate(updateReportSchema), reportController.update);
 
 /**
  * @swagger
@@ -102,6 +103,6 @@ router.put('/:id', authenticate, validate(updateReportSchema), reportController.
  *       200:
  *         description: Report deleted
  */
-router.delete('/:id', authenticate, validate(deleteReportSchema), reportController.delete);
+router.delete('/:id', authenticate, authorize(...ROLES_MANAGEMENT), validate(deleteReportSchema), reportController.delete);
 
 export default router;

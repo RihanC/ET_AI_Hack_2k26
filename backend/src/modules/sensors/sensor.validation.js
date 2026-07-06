@@ -55,3 +55,14 @@ export const updateSensorSchema = {
 };
 
 export const deleteSensorSchema = { params: idParam };
+
+export const calibrateSensorSchema = { params: idParam };
+
+export const maintenanceModeSchema = {
+  params: idParam,
+  body: z.object({
+    enabled: z.boolean(),
+  }),
+};
+
+export const sensorHealthSchema = { params: idParam };

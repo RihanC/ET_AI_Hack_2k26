@@ -4,12 +4,14 @@
 
 import { Router } from 'express';
 import sensorController from './sensor.controller.js';
-import { authenticate } from '../../middlewares/auth.middleware.js';
+import { authenticate, authorize } from '../../middlewares/auth.middleware.js';
 import validate from '../../middlewares/validate.middleware.js';
 import {
   getSensorsSchema, getSensorByIdSchema,
   createSensorSchema, updateSensorSchema, deleteSensorSchema,
+  calibrateSensorSchema, maintenanceModeSchema, sensorHealthSchema,
 } from './sensor.validation.js';
+import { ROLES_OPERATIONAL, ROLES_MANAGEMENT } from '../../utils/constants.js';
 
 const router = Router();
 
@@ -19,6 +21,8 @@ const router = Router();
  *   get:
  *     summary: Get all sensors
  *     tags: [Sensors]
+ *     security:
+ *       - bearerAuth: []
  *     parameters:
  *       - in: query
  *         name: page
@@ -50,6 +54,8 @@ router.get('/', authenticate, validate(getSensorsSchema), sensorController.getAl
  *   get:
  *     summary: Get sensor by ID
  *     tags: [Sensors]
+ *     security:
+ *       - bearerAuth: []
  *     parameters:
  *       - in: path
  *         name: id
@@ -63,15 +69,36 @@ router.get('/:id', authenticate, validate(getSensorByIdSchema), sensorController
 
 /**
  * @swagger
+ * /sensors/{id}/health:
+ *   get:
+ *     summary: Get sensor health information
+ *     tags: [Sensors]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string, format: uuid }
+ *     responses:
+ *       200:
+ *         description: Sensor health retrieved
+ */
+router.get('/:id/health', authenticate, validate(sensorHealthSchema), sensorController.getHealth);
+
+/**
+ * @swagger
  * /sensors:
  *   post:
  *     summary: Create a new sensor
  *     tags: [Sensors]
+ *     security:
+ *       - bearerAuth: []
  *     responses:
  *       201:
  *         description: Sensor created
  */
-router.post('/', authenticate, validate(createSensorSchema), sensorController.create);
+router.post('/', authenticate, authorize(...ROLES_MANAGEMENT), validate(createSensorSchema), sensorController.create);
 
 /**
  * @swagger
@@ -79,6 +106,8 @@ router.post('/', authenticate, validate(createSensorSchema), sensorController.cr
  *   put:
  *     summary: Update a sensor
  *     tags: [Sensors]
+ *     security:
+ *       - bearerAuth: []
  *     parameters:
  *       - in: path
  *         name: id
@@ -88,7 +117,55 @@ router.post('/', authenticate, validate(createSensorSchema), sensorController.cr
  *       200:
  *         description: Sensor updated
  */
-router.put('/:id', authenticate, validate(updateSensorSchema), sensorController.update);
+router.put('/:id', authenticate, authorize(...ROLES_OPERATIONAL), validate(updateSensorSchema), sensorController.update);
+
+/**
+ * @swagger
+ * /sensors/{id}/calibrate:
+ *   post:
+ *     summary: Set sensor to calibration mode
+ *     tags: [Sensors]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string, format: uuid }
+ *     responses:
+ *       200:
+ *         description: Sensor set to calibration mode
+ */
+router.post('/:id/calibrate', authenticate, authorize(...ROLES_MANAGEMENT), validate(calibrateSensorSchema), sensorController.calibrate);
+
+/**
+ * @swagger
+ * /sensors/{id}/maintenance:
+ *   post:
+ *     summary: Enable or disable sensor maintenance mode
+ *     tags: [Sensors]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string, format: uuid }
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [enabled]
+ *             properties:
+ *               enabled:
+ *                 type: boolean
+ *     responses:
+ *       200:
+ *         description: Maintenance mode toggled
+ */
+router.post('/:id/maintenance', authenticate, authorize(...ROLES_MANAGEMENT), validate(maintenanceModeSchema), sensorController.setMaintenanceMode);
 
 /**
  * @swagger
@@ -96,6 +173,8 @@ router.put('/:id', authenticate, validate(updateSensorSchema), sensorController.
  *   delete:
  *     summary: Delete a sensor
  *     tags: [Sensors]
+ *     security:
+ *       - bearerAuth: []
  *     parameters:
  *       - in: path
  *         name: id
@@ -105,6 +184,6 @@ router.put('/:id', authenticate, validate(updateSensorSchema), sensorController.
  *       200:
  *         description: Sensor deleted
  */
-router.delete('/:id', authenticate, validate(deleteSensorSchema), sensorController.delete);
+router.delete('/:id', authenticate, authorize(...ROLES_MANAGEMENT), validate(deleteSensorSchema), sensorController.delete);
 
 export default router;

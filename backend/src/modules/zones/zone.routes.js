@@ -4,12 +4,13 @@
 
 import { Router } from 'express';
 import zoneController from './zone.controller.js';
-import { authenticate } from '../../middlewares/auth.middleware.js';
+import { authenticate, authorize } from '../../middlewares/auth.middleware.js';
 import validate from '../../middlewares/validate.middleware.js';
 import {
   getZonesSchema, getZoneByIdSchema,
   createZoneSchema, updateZoneSchema, deleteZoneSchema,
 } from './zone.validation.js';
+import { ROLES_MANAGEMENT } from '../../utils/constants.js';
 
 const router = Router();
 
@@ -71,7 +72,7 @@ router.get('/:id', authenticate, validate(getZoneByIdSchema), zoneController.get
  *       201:
  *         description: Zone created
  */
-router.post('/', authenticate, validate(createZoneSchema), zoneController.create);
+router.post('/', authenticate, authorize(...ROLES_MANAGEMENT), validate(createZoneSchema), zoneController.create);
 
 /**
  * @swagger
@@ -88,7 +89,7 @@ router.post('/', authenticate, validate(createZoneSchema), zoneController.create
  *       200:
  *         description: Zone updated
  */
-router.put('/:id', authenticate, validate(updateZoneSchema), zoneController.update);
+router.put('/:id', authenticate, authorize(...ROLES_MANAGEMENT), validate(updateZoneSchema), zoneController.update);
 
 /**
  * @swagger
@@ -105,6 +106,6 @@ router.put('/:id', authenticate, validate(updateZoneSchema), zoneController.upda
  *       200:
  *         description: Zone deleted
  */
-router.delete('/:id', authenticate, validate(deleteZoneSchema), zoneController.delete);
+router.delete('/:id', authenticate, authorize(...ROLES_MANAGEMENT), validate(deleteZoneSchema), zoneController.delete);
 
 export default router;

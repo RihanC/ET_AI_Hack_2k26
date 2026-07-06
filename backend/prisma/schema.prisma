@@ -175,9 +175,10 @@ model User {
   updatedAt DateTime @updatedAt @map("updated_at")
 
   // Relations
-  issuedPermits    Permit[]        @relation("PermitIssuer")
-  acknowledgedAlerts Alert[]       @relation("AlertAcknowledger")
-  generatedReports Report[]        @relation("ReportGenerator")
+  issuedPermits      Permit[]        @relation("PermitIssuer")
+  acknowledgedAlerts Alert[]         @relation("AlertAcknowledger")
+  resolvedAlerts     Alert[]         @relation("AlertResolver")
+  generatedReports   Report[]        @relation("ReportGenerator")
 
   @@map("users")
 }
@@ -322,25 +323,30 @@ model PermitEquipment {
 }
 
 model Alert {
-  id           String        @id @default(uuid())
-  type         AlertType
-  severity     AlertSeverity @default(INFO)
-  title        String
-  description  String
-  acknowledged Boolean       @default(false)
-  source       String?
-  zoneId       String?       @map("zone_id")
-  userId       String?       @map("user_id")
-  createdAt    DateTime      @default(now()) @map("created_at")
-  updatedAt    DateTime      @updatedAt @map("updated_at")
+  id             String        @id @default(uuid())
+  type           AlertType
+  severity       AlertSeverity @default(INFO)
+  title          String
+  description    String
+  acknowledged   Boolean       @default(false)
+  resolved       Boolean       @default(false)
+  source         String?
+  zoneId         String?       @map("zone_id")
+  userId         String?       @map("user_id")
+  resolvedById   String?       @map("resolved_by_id")
+  resolvedAt     DateTime?     @map("resolved_at")
+  createdAt      DateTime      @default(now()) @map("created_at")
+  updatedAt      DateTime      @updatedAt @map("updated_at")
 
   // Relations
   zone           Zone? @relation(fields: [zoneId], references: [id], onDelete: SetNull)
   acknowledgedBy User? @relation("AlertAcknowledger", fields: [userId], references: [id], onDelete: SetNull)
+  resolvedBy     User? @relation("AlertResolver", fields: [resolvedById], references: [id], onDelete: SetNull)
 
   @@index([zoneId])
   @@index([severity])
   @@index([acknowledged])
+  @@index([resolved])
   @@index([type])
   @@map("alerts")
 }
@@ -387,4 +393,17 @@ model Report {
   @@index([status])
   @@index([generatedById])
   @@map("reports")
+}
+
+model WorkerMovement {
+  id        String   @id @default(uuid())
+  workerId  String   @map("worker_id")
+  fromZoneId String? @map("from_zone_id")
+  toZoneId  String?  @map("to_zone_id")
+  timestamp DateTime @default(now())
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([workerId])
+  @@index([timestamp])
+  @@map("worker_movements")
 }

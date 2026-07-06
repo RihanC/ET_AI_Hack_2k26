@@ -31,6 +31,28 @@ class AlertController {
     await alertService.delete(req.params.id);
     ApiResponse.ok(res, 'Alert deleted');
   });
+
+  acknowledge = asyncHandler(async (req, res) => {
+    const alert = await alertService.acknowledge(req.params.id, req.user.id);
+    ApiResponse.ok(res, 'Alert acknowledged', alert);
+  });
+
+  resolve = asyncHandler(async (req, res) => {
+    const alert = await alertService.resolve(req.params.id, req.user.id);
+    ApiResponse.ok(res, 'Alert resolved', alert);
+  });
+
+  getHistory = asyncHandler(async (req, res) => {
+    const result = await alertService.getHistory(req.query);
+    res.status(200).json({
+      success: true,
+      message: 'Alert history retrieved',
+      data: result.data,
+      pagination: result.pagination,
+      summary: result.summary,
+      timestamp: new Date().toISOString(),
+    });
+  });
 }
 
 export default new AlertController();

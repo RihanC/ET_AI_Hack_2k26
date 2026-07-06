@@ -31,6 +31,22 @@ class SensorController {
     await sensorService.delete(req.params.id);
     ApiResponse.ok(res, 'Sensor deleted');
   });
+
+  calibrate = asyncHandler(async (req, res) => {
+    const sensor = await sensorService.calibrate(req.params.id);
+    ApiResponse.ok(res, 'Sensor set to calibration mode', sensor);
+  });
+
+  setMaintenanceMode = asyncHandler(async (req, res) => {
+    const { enabled } = req.body;
+    const sensor = await sensorService.setMaintenanceMode(req.params.id, enabled);
+    ApiResponse.ok(res, `Sensor maintenance mode ${enabled ? 'enabled' : 'disabled'}`, sensor);
+  });
+
+  getHealth = asyncHandler(async (req, res) => {
+    const health = await sensorService.getHealth(req.params.id);
+    ApiResponse.ok(res, 'Sensor health retrieved', health);
+  });
 }
 
 export default new SensorController();

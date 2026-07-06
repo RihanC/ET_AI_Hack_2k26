@@ -4,12 +4,13 @@
 
 import { Router } from 'express';
 import equipmentController from './equipment.controller.js';
-import { authenticate } from '../../middlewares/auth.middleware.js';
+import { authenticate, authorize } from '../../middlewares/auth.middleware.js';
 import validate from '../../middlewares/validate.middleware.js';
 import {
   getEquipmentListSchema, getEquipmentByIdSchema,
   createEquipmentSchema, updateEquipmentSchema, deleteEquipmentSchema,
 } from './equipment.validation.js';
+import { ROLES_MANAGEMENT, ROLES_OPERATIONAL } from '../../utils/constants.js';
 
 const router = Router();
 
@@ -74,7 +75,7 @@ router.get('/:id', authenticate, validate(getEquipmentByIdSchema), equipmentCont
  *       201:
  *         description: Equipment created
  */
-router.post('/', authenticate, validate(createEquipmentSchema), equipmentController.create);
+router.post('/', authenticate, authorize(...ROLES_MANAGEMENT), validate(createEquipmentSchema), equipmentController.create);
 
 /**
  * @swagger
@@ -91,7 +92,7 @@ router.post('/', authenticate, validate(createEquipmentSchema), equipmentControl
  *       200:
  *         description: Equipment updated
  */
-router.put('/:id', authenticate, validate(updateEquipmentSchema), equipmentController.update);
+router.put('/:id', authenticate, authorize(...ROLES_OPERATIONAL), validate(updateEquipmentSchema), equipmentController.update);
 
 /**
  * @swagger
@@ -108,6 +109,6 @@ router.put('/:id', authenticate, validate(updateEquipmentSchema), equipmentContr
  *       200:
  *         description: Equipment deleted
  */
-router.delete('/:id', authenticate, validate(deleteEquipmentSchema), equipmentController.delete);
+router.delete('/:id', authenticate, authorize(...ROLES_MANAGEMENT), validate(deleteEquipmentSchema), equipmentController.delete);
 
 export default router;

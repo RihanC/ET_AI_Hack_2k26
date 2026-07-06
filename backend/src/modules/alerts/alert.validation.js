@@ -5,7 +5,7 @@
 import { z } from 'zod';
 
 const idParam = z.object({
-  id: z.string().uuid('Invalid alert ID'),
+  id: z.string().min(1, 'Invalid alert ID'),
 });
 
 const querySchema = z.object({
@@ -47,3 +47,16 @@ export const updateAlertSchema = {
 };
 
 export const deleteAlertSchema = { params: idParam };
+
+export const getAlertHistorySchema = {
+  query: z.object({
+    page: z.coerce.number().int().positive().optional().default(1),
+    limit: z.coerce.number().int().positive().max(100).optional().default(20),
+    zoneId: z.string().uuid().optional(),
+    severity: z.enum(['INFO', 'WARNING', 'CRITICAL']).optional(),
+  }),
+};
+
+export const acknowledgeAlertSchema = { params: idParam };
+export const resolveAlertSchema = { params: idParam };
+

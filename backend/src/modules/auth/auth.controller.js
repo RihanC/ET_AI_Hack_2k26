@@ -27,6 +27,12 @@ class AuthController {
     // JWT is stateless — client discards the token
     ApiResponse.ok(res, 'Logout successful');
   });
+
+  refresh = asyncHandler(async (req, res) => {
+    const { refreshToken } = req.body;
+    const result = await authService.refreshToken(refreshToken);
+    ApiResponse.ok(res, 'Token refreshed', result);
+  });
 }
 
 export default new AuthController();

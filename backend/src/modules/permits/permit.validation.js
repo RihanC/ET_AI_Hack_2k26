@@ -5,7 +5,7 @@
 import { z } from 'zod';
 
 const idParam = z.object({
-  id: z.string().uuid('Invalid permit ID'),
+  id: z.string().min(1, 'Invalid permit ID'),
 });
 
 const querySchema = z.object({
@@ -55,3 +55,30 @@ export const updatePermitSchema = {
 };
 
 export const deletePermitSchema = { params: idParam };
+
+export const approvePermitSchema = { params: idParam };
+export const rejectPermitSchema = { params: idParam };
+export const suspendPermitSchema = { params: idParam };
+
+export const assignWorkersSchema = {
+  params: idParam,
+  body: z.object({
+    workerIds: z.array(z.string().min(1)).min(1, 'At least one worker ID is required'),
+  }),
+};
+
+export const assignEquipmentSchema = {
+  params: idParam,
+  body: z.object({
+    equipmentIds: z.array(z.string().uuid()).min(1, 'At least one equipment ID is required'),
+  }),
+};
+
+export const permitHistorySchema = {
+  query: z.object({
+    page: z.coerce.number().int().positive().optional().default(1),
+    limit: z.coerce.number().int().positive().max(100).optional().default(20),
+    zoneId: z.string().uuid().optional(),
+    status: z.enum(['ACTIVE', 'PENDING', 'EXPIRED', 'SUSPENDED', 'REVOKED']).optional(),
+  }),
+};

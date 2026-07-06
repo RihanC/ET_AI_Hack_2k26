@@ -10,6 +10,7 @@ import {
   getUsersSchema, getUserByIdSchema,
   createUserSchema, updateUserSchema, deleteUserSchema,
 } from './user.validation.js';
+import { ROLES_MANAGEMENT, ROLES_ADMIN } from '../../utils/constants.js';
 
 const router = Router();
 
@@ -19,6 +20,8 @@ const router = Router();
  *   get:
  *     summary: Get all users (paginated)
  *     tags: [Users]
+ *     security:
+ *       - bearerAuth: []
  *     parameters:
  *       - in: query
  *         name: page
@@ -36,7 +39,7 @@ const router = Router();
  *       200:
  *         description: Users retrieved
  */
-router.get('/', authenticate, validate(getUsersSchema), userController.getAll);
+router.get('/', authenticate, authorize(...ROLES_MANAGEMENT), validate(getUsersSchema), userController.getAll);
 
 /**
  * @swagger
@@ -44,6 +47,8 @@ router.get('/', authenticate, validate(getUsersSchema), userController.getAll);
  *   get:
  *     summary: Get user by ID
  *     tags: [Users]
+ *     security:
+ *       - bearerAuth: []
  *     parameters:
  *       - in: path
  *         name: id
@@ -55,14 +60,16 @@ router.get('/', authenticate, validate(getUsersSchema), userController.getAll);
  *       404:
  *         description: User not found
  */
-router.get('/:id', authenticate, validate(getUserByIdSchema), userController.getById);
+router.get('/:id', authenticate, authorize(...ROLES_MANAGEMENT), validate(getUserByIdSchema), userController.getById);
 
 /**
  * @swagger
  * /users:
  *   post:
- *     summary: Create a new user
+ *     summary: Create a new user (Admin only)
  *     tags: [Users]
+ *     security:
+ *       - bearerAuth: []
  *     requestBody:
  *       required: true
  *       content:
@@ -73,14 +80,16 @@ router.get('/:id', authenticate, validate(getUserByIdSchema), userController.get
  *       201:
  *         description: User created
  */
-router.post('/', authenticate, authorize('ADMIN'), validate(createUserSchema), userController.create);
+router.post('/', authenticate, authorize(...ROLES_ADMIN), validate(createUserSchema), userController.create);
 
 /**
  * @swagger
  * /users/{id}:
  *   put:
- *     summary: Update a user
+ *     summary: Update a user (Admin only)
  *     tags: [Users]
+ *     security:
+ *       - bearerAuth: []
  *     parameters:
  *       - in: path
  *         name: id
@@ -90,14 +99,16 @@ router.post('/', authenticate, authorize('ADMIN'), validate(createUserSchema), u
  *       200:
  *         description: User updated
  */
-router.put('/:id', authenticate, authorize('ADMIN'), validate(updateUserSchema), userController.update);
+router.put('/:id', authenticate, authorize(...ROLES_ADMIN), validate(updateUserSchema), userController.update);
 
 /**
  * @swagger
  * /users/{id}:
  *   delete:
- *     summary: Delete a user
+ *     summary: Delete a user (Admin only)
  *     tags: [Users]
+ *     security:
+ *       - bearerAuth: []
  *     parameters:
  *       - in: path
  *         name: id
@@ -107,6 +118,6 @@ router.put('/:id', authenticate, authorize('ADMIN'), validate(updateUserSchema),
  *       200:
  *         description: User deleted
  */
-router.delete('/:id', authenticate, authorize('ADMIN'), validate(deleteUserSchema), userController.delete);
+router.delete('/:id', authenticate, authorize(...ROLES_ADMIN), validate(deleteUserSchema), userController.delete);
 
 export default router;
