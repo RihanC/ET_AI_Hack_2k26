@@ -121,6 +121,33 @@ router.put('/:id', authenticate, authorize(...ROLES_OPERATIONAL), validate(updat
 
 /**
  * @swagger
+ * /sensors/{id}/reading:
+ *   post:
+ *     summary: Ingest a new reading from an IoT device
+ *     tags: [Sensors]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string, format: uuid }
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [value]
+ *             properties:
+ *               value:
+ *                 type: number
+ *     responses:
+ *       200:
+ *         description: Sensor reading ingested successfully
+ */
+router.post('/:id/reading', validate(updateSensorSchema), sensorController.ingestReading);
+
+/**
+ * @swagger
  * /sensors/{id}/calibrate:
  *   post:
  *     summary: Set sensor to calibration mode

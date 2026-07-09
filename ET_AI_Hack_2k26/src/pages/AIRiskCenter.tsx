@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Brain, AlertTriangle, TrendingUp, ChevronRight, Zap,
   Clock, Users, FileText, Cpu, Play, RotateCcw, Info
@@ -7,6 +7,7 @@ import {
   RadarChart, Radar, PolarGrid, PolarAngleAxis, ResponsiveContainer,
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, BarChart, Bar
 } from 'recharts';
+import { sensorsApi, workersApi, permitsApi, alertsApi } from '../services/api';
 import './AIRiskCenter.css';
 
 interface AIRiskCenterProps {
@@ -14,51 +15,153 @@ interface AIRiskCenterProps {
   onNavigate: (page: string) => void;
 }
 
-const compoundRisks = [
-  {
-    id: 'CR1',
-    title: 'Oxygen Deficiency + Confined Space + Non-Compliant PPE',
-    zone: 'Zone F — Tank Farm',
-    probability: 87,
-    timeToEscalation: '< 8 minutes',
-    severity: 'critical' as const,
-    factors: ['O₂ at 18.2% (↓ from 19.8%)', 'Worker W004 in confined space', 'PPE non-compliant', 'Permit compliance 62%'],
-    recommendation: 'IMMEDIATE: Evacuate W004 from Zone F. Suspend PTW-2024-0042. Activate confined space rescue protocol.',
-    confidence: 94,
-  },
-  {
-    id: 'CR2',
-    title: 'H₂S Rising + High Temperature + Hot-Work Permit Active',
-    zone: 'Zone A — Blast Furnace',
-    probability: 64,
-    timeToEscalation: '~35 minutes',
-    severity: 'warning' as const,
-    factors: ['H₂S 8.4 ppm (↑ 38% in 2h)', 'Temperature at 1487°C trending up', 'Hot-work permit active', 'Tapping operation in progress'],
-    recommendation: 'Increase ventilation rate by 40%. Alert worker W001. Monitor H₂S trend — if reaches 9 ppm, consider work suspension.',
-    confidence: 78,
-  },
-  {
-    id: 'CR3',
-    title: 'CO Elevation + Worker Presence + Inadequate Ventilation',
-    zone: 'Zone B — Converter',
-    probability: 51,
-    timeToEscalation: '~55 minutes',
-    severity: 'warning' as const,
-    factors: ['CO at 23.1 ppm (threshold 25)', 'Safety officer W002 present', 'Ventilation at 72% capacity', 'CO trending up slowly'],
-    recommendation: 'Restore ventilation to 100% capacity. Brief W002 on CO status. Increase monitoring frequency to 30 seconds.',
-    confidence: 71,
-  },
-];
-
-const whatIfScenarios = [
-  { name: 'Current State', risk: 68, gas: 8.4, workers: 1 },
-  { name: 'If Evacuate F', risk: 48, gas: 8.4, workers: 0 },
-  { name: 'If Increase Vent', risk: 58, gas: 5.2, workers: 1 },
-  { name: 'If Suspend PTW', risk: 52, gas: 8.4, workers: 0 },
-  { name: 'All Actions', risk: 32, gas: 5.2, workers: 0 },
-];
+// Compound risks and what-if scenarios are computed dynamically inside the component
 
 const AIRiskCenter: React.FC<AIRiskCenterProps> = ({ liveKPI, onNavigate }) => {
+  const [sensorsList, setSensorsList] = useState<any[]>([]);
+  const [workersList, setWorkersList] = useState<any[]>([]);
+  const [permitsList, setPermitsList] = useState<any[]>([]);
+  const [alertsList, setAlertsList] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let active = true;
+    const fetchAll = async () => {
+      try {
+        const [sensorsRes, workersRes, permitsRes, alertsRes] = await Promise.all([
+          sensorsApi.getAll(),
+          workersApi.getAll(),
+          permitsApi.getAll(),
+          alertsApi.getAll(),
+        ]);
+        if (active) {
+          if (sensorsRes.success && Array.isArray(sensorsRes.data)) setSensorsList(sensorsRes.data);
+          if (workersRes.success && Array.isArray(workersRes.data)) setWorkersList(workersRes.data);
+          if (permitsRes.success && Array.isArray(permitsRes.data)) setPermitsList(permitsRes.data);
+          if (alertsRes.success && Array.isArray(alertsRes.data)) setAlertsList(alertsRes.data);
+        }
+      } catch (err) {
+        console.warn('AIRiskCenter API load error:', err);
+      } finally {
+        if (active) setLoading(false);
+      }
+    };
+    fetchAll();
+    return () => { active = false; };
+  }, []);
+
+  // Compute compound risks dynamically
+  const compoundRisks: any[] = [];
+
+  // 1. Confined space / high-hazard ppe compliance
+  const activeConfinedSpacePermits = permitsList.filter(
+    (p) => (p.status === 'active' || p.status === 'ACTIVE') && p.type === 'confined-space'
+  );
+  activeConfinedSpacePermits.forEach((permit) => {
+    const zoneName = permit.zone?.name || permit.zoneName || permit.zone || 'Confined Space Zone';
+    const workersInZone = workersList.filter(
+      (w) => w.zone?.name === zoneName || w.zoneName === zoneName || w.zone === zoneName
+    );
+    const nonCompliantWorker = workersInZone.find((w) => w.ppeStatus !== 'compliant');
+    const o2Sensor = sensorsList.find(
+      (s) =>
+        (s.zone?.name === zoneName || s.zoneName === zoneName || s.zone === zoneName) &&
+        (s.type === 'gas' || s.type === 'GAS') &&
+        (s.name.includes('O₂') || s.name.includes('Oxygen'))
+    );
+
+    if (nonCompliantWorker || (o2Sensor && o2Sensor.status === 'critical')) {
+      compoundRisks.push({
+        id: `CR-CONF-${permit.id}`,
+        title: 'Oxygen Deficiency + Confined Space + Non-Compliant PPE',
+        zone: zoneName,
+        probability: permit.compliance < 80 ? 87 : 72,
+        timeToEscalation: '< 8 minutes',
+        severity: 'critical' as const,
+        factors: [
+          o2Sensor ? `O₂ sensor ${o2Sensor.name.split('—')[0]} at ${o2Sensor.value}${o2Sensor.unit} (${o2Sensor.status})` : 'Low Oxygen levels',
+          nonCompliantWorker ? `Worker ${nonCompliantWorker.name} in zone has ${nonCompliantWorker.ppeStatus} PPE` : 'Confined space active',
+          `Permit compliance is ${permit.compliance}%`,
+        ],
+        recommendation: `IMMEDIATE: Evacuate workers from ${zoneName}. Suspend permit ${permit.id}. Activate confined space rescue protocol.`,
+        confidence: 94,
+      });
+    }
+  });
+
+  // 2. Gas warnings + High Temp + Hot work
+  const activeHotWorkPermits = permitsList.filter(
+    (p) => (p.status === 'active' || p.status === 'ACTIVE') && p.type === 'hot-work'
+  );
+  activeHotWorkPermits.forEach((permit) => {
+    const zoneName = permit.zone?.name || permit.zoneName || permit.zone || 'Hot Work Zone';
+    const gasWarningSensor = sensorsList.find(
+      (s) =>
+        (s.zone?.name === zoneName || s.zoneName === zoneName || s.zone === zoneName) &&
+        (s.type === 'gas' || s.type === 'GAS') &&
+        (s.status === 'warning' || s.status === 'critical')
+    );
+    const tempSensor = sensorsList.find(
+      (s) =>
+        (s.zone?.name === zoneName || s.zoneName === zoneName || s.zone === zoneName) &&
+        (s.type === 'temperature' || s.type === 'TEMPERATURE')
+    );
+
+    if (gasWarningSensor || (tempSensor && tempSensor.value > 1000)) {
+      compoundRisks.push({
+        id: `CR-HOT-${permit.id}`,
+        title: 'Gas Concentration + High Temperature + Hot-Work Permit Active',
+        zone: zoneName,
+        probability: gasWarningSensor?.status === 'critical' ? 88 : 64,
+        timeToEscalation: '~35 minutes',
+        severity: gasWarningSensor?.status === 'critical' ? ('critical' as const) : ('warning' as const),
+        factors: [
+          gasWarningSensor ? `${gasWarningSensor.name.split('—')[0]} at ${gasWarningSensor.value}${gasWarningSensor.unit}` : 'Hazardous gas readings',
+          tempSensor ? `Temperature at ${tempSensor.value}°C` : 'High furnace heat',
+          `Hot-work permit ${permit.id} active`,
+        ],
+        recommendation: `Increase ventilation rate by 40% in ${zoneName}. Alert worker operations. Suspend permit ${permit.id} if gas exceeds threshold.`,
+        confidence: 78,
+      });
+    }
+  });
+
+  // 3. General active alerts warning fallback
+  const unresolvedAlerts = alertsList.filter((a) => !a.acknowledged && !a.resolved);
+  if (compoundRisks.length === 0 && unresolvedAlerts.length > 0) {
+    const primaryAlert = unresolvedAlerts[0];
+    const alertZone = primaryAlert.zone?.name || primaryAlert.zoneName || primaryAlert.zone || 'Plant Floor';
+    compoundRisks.push({
+      id: `CR-GEN-${primaryAlert.id}`,
+      title: `${primaryAlert.title} + Active Hazards`,
+      zone: alertZone,
+      probability: primaryAlert.severity === 'critical' ? 75 : 50,
+      timeToEscalation: '~45 minutes',
+      severity: primaryAlert.severity === 'critical' ? ('critical' as const) : ('warning' as const),
+      factors: [
+        `Active Alert: ${primaryAlert.description}`,
+        `Safety event source: ${primaryAlert.source || 'Sensor Network'}`,
+      ],
+      recommendation: `Acknowledge alert ${primaryAlert.id}. Deploy field technician to verify conditions in ${alertZone}.`,
+      confidence: 80,
+    });
+  }
+
+  // Fallback safe card if no risk is present
+  if (compoundRisks.length === 0) {
+    compoundRisks.push({
+      id: 'SAFE',
+      title: 'All Safety Parameters Within Safe Thresholds',
+      zone: 'All Plant Zones',
+      probability: 0,
+      timeToEscalation: 'N/A',
+      severity: 'info' as const,
+      factors: ['All sensor telemetry online and nominal', 'No active critical safety events', 'All worker PPE fully compliant'],
+      recommendation: 'Continue routine safety inspections. Maintain active sensor telemetry monitoring and shift supervision.',
+      confidence: 100,
+    });
+  }
+
   const dynamicRiskFactors = [
     { factor: 'Gas Concentration', score: Math.min(100, Math.max(10, Math.round(liveKPI.riskScore * 1.1))), weight: 0.3, trend: 'up', color: '#EF4444' },
     { factor: 'Worker Exposure', score: Math.min(100, 20 + (liveKPI.activeWorkers * 8)), weight: 0.25, trend: 'stable', color: '#F59E0B' },
@@ -78,12 +181,21 @@ const AIRiskCenter: React.FC<AIRiskCenterProps> = ({ liveKPI, onNavigate }) => {
     riskScore: Math.round(Math.max(10, Math.min(95, liveKPI.riskScore - 15 + Math.sin(i * 0.4) * 10 + Math.random() * 5))),
   }));
 
-  const [selectedRisk, setSelectedRisk] = useState(compoundRisks[0]);
+  const [selectedRiskId, setSelectedRiskId] = useState<string | null>(null);
+  const selectedRisk = compoundRisks.find(r => r.id === selectedRiskId) || compoundRisks[0];
   const [simulating, setSimulating] = useState(false);
   const [simResult, setSimResult] = useState<null | number>(null);
 
   const riskScore = Math.round(liveKPI.riskScore);
   const riskColor = riskScore >= 75 ? '#EF4444' : riskScore >= 50 ? '#F59E0B' : '#22C55E';
+
+  const whatIfScenarios = [
+    { name: 'Current State', risk: riskScore, gas: Math.round((riskScore * 0.12) * 10) / 10, workers: liveKPI.activeWorkers },
+    { name: 'If Evacuate Zone', risk: Math.max(5, Math.round(riskScore * 0.7)), gas: Math.round((riskScore * 0.12) * 10) / 10, workers: Math.max(0, liveKPI.activeWorkers - 1) },
+    { name: 'If Increase Vent', risk: Math.max(5, Math.round(riskScore * 0.85)), gas: Math.round((riskScore * 0.08) * 10) / 10, workers: liveKPI.activeWorkers },
+    { name: 'If Suspend PTW', risk: Math.max(5, Math.round(riskScore * 0.75)), gas: Math.round((riskScore * 0.12) * 10) / 10, workers: Math.max(0, liveKPI.activeWorkers - 1) },
+    { name: 'All Actions', risk: Math.max(2, Math.round(riskScore * 0.45)), gas: Math.round((riskScore * 0.08) * 10) / 10, workers: 0 },
+  ];
 
   const runSimulation = () => {
     setSimulating(true);
@@ -241,9 +353,9 @@ const AIRiskCenter: React.FC<AIRiskCenterProps> = ({ liveKPI, onNavigate }) => {
               <button
                 key={cr.id}
                 className={`tab ${selectedRisk.id === cr.id ? 'active' : ''}`}
-                onClick={() => setSelectedRisk(cr)}
+                onClick={() => setSelectedRiskId(cr.id)}
               >
-                <span className={`pulse-dot ${cr.severity === 'critical' ? 'critical' : 'warning'}`} style={{width:6,height:6}} />
+                <span className={`pulse-dot ${cr.severity === 'critical' ? 'critical' : cr.severity === 'warning' ? 'warning' : 'info'}`} style={{width:6,height:6}} />
                 {cr.zone.split(' — ')[0]}
               </button>
             ))}
@@ -281,7 +393,7 @@ const AIRiskCenter: React.FC<AIRiskCenterProps> = ({ liveKPI, onNavigate }) => {
 
             {/* Factor Chain */}
             <div className="factor-chain">
-              {selectedRisk.factors.map((f, i) => (
+              {selectedRisk.factors.map((f: string, i: number) => (
                 <React.Fragment key={f}>
                   <div className="factor-chip">
                     {f.includes('O₂') || f.includes('H₂S') || f.includes('CO') ? <Cpu size={11} onClick={() => onNavigate('sensors')} style={{cursor:'pointer'}} /> :

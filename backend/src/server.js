@@ -7,6 +7,7 @@ import app from './app.js';
 import env from './config/env.js';
 import { connectDatabase, disconnectDatabase } from './config/database.js';
 import { initializeSocket } from './socket/socket.manager.js';
+import { startSensorSimulation, stopSensorSimulation } from './utils/simulator.js';
 import logger from './utils/logger.js';
 
 const server = http.createServer(app);
@@ -22,7 +23,10 @@ async function start() {
     // 2. Initialize Socket.IO
     initializeSocket(server);
 
-    // 3. Start HTTP server
+    // 3. Start live IoT sensor simulator
+    startSensorSimulation();
+
+    // 4. Start HTTP server
     server.listen(env.port, () => {
       logger.info('════════════════════════════════════════════════');
       logger.info('  ISIP Backend — Industrial Safety Intelligence');
@@ -48,6 +52,7 @@ function gracefulShutdown(signal) {
 
   server.close(async () => {
     logger.info('HTTP server closed');
+    stopSensorSimulation();
     await disconnectDatabase();
     logger.info('All connections closed. Exiting.');
     process.exit(0);

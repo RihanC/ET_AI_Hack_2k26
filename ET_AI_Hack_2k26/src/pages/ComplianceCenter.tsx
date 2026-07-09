@@ -44,13 +44,38 @@ const ComplianceCenter: React.FC = () => {
     : 100;
   const permitStatus = avgPermitCompliance < 70 ? 'fail' : avgPermitCompliance < 85 ? 'warning' : 'pass';
 
+  // Compute dynamic electrical isolation status based on actual electrical permits
+  const electricalPermits = permitsList.filter(p => p.type === 'electrical' && p.status === 'active');
+  const electricalStatus = electricalPermits.length > 0
+    ? (electricalPermits.some(p => p.compliance < 50) ? 'fail' : electricalPermits.some(p => p.compliance < 80) ? 'warning' : 'pass')
+    : 'pass';
+  const electricalEvidence = electricalPermits.length > 0
+    ? `Active electrical permits compliance score: ${Math.round(electricalPermits.reduce((acc, p) => acc + (p.compliance ?? 100), 0) / electricalPermits.length)}%`
+    : 'No active electrical permits; default isolation checks verified';
+
+  // Compute fire protection status based on active temp sensors
+  const tempSensors = sensorsList.filter(s => s.type?.toLowerCase() === 'temperature' || s.type === 'TEMPERATURE');
+  const fireStatus = tempSensors.some(s => s.status === 'critical' || s.status === 'CRITICAL') ? 'fail' : tempSensors.some(s => s.status === 'warning' || s.status === 'WARNING') ? 'warning' : 'pass';
+  const fireEvidence = tempSensors.length > 0
+    ? `${tempSensors.filter(s => s.status?.toLowerCase() === 'online').length}/${tempSensors.length} temperature monitors reporting normal profiles`
+    : 'All fire suppression telemetry active';
+
+  // Compute confined space safety based on confined space permits
+  const confinedPermits = permitsList.filter(p => p.type === 'confined-space' && p.status === 'active');
+  const confinedStatus = confinedPermits.length > 0
+    ? (workersList.some(w => confinedPermits.some(p => p.workers.includes(w.id)) && w.ppeStatus !== 'compliant') ? 'fail' : 'pass')
+    : 'pass';
+  const confinedEvidence = confinedPermits.length > 0
+    ? `${confinedPermits.length} active confined space permits verified`
+    : 'No active confined space entries registered';
+
   const complianceChecks = [
-    { id: 'C001', rule: 'IS 13947 — Electrical Isolation', status: 'pass', evidence: 'All electrical isolations verified', zone: 'Zone G' },
-    { id: 'C002', rule: 'OISD-GDN-206 — Gas Detection', status: gasStatus, evidence: `${gasSensors.filter(s => s.status === 'ONLINE' || s.status === 'online').length}/${gasSensors.length} gas sensors operational`, zone: 'All Zones' },
-    { id: 'C003', rule: 'Factory Act 1948 — PPE Compliance', status: ppeStatus, evidence: `${workersList.filter(w => w.ppeStatus === 'COMPLIANT' || w.ppeStatus === 'compliant').length}/${workersList.length} workers compliant`, zone: 'Zone E, F' },
+    { id: 'C001', rule: 'IS 13947 — Electrical Isolation', status: electricalStatus, evidence: electricalEvidence, zone: 'Zone G' },
+    { id: 'C002', rule: 'OISD-GDN-206 — Gas Detection', status: gasStatus, evidence: `${gasSensors.filter(s => s.status?.toLowerCase() === 'online').length}/${gasSensors.length || 1} gas sensors operational`, zone: 'All Zones' },
+    { id: 'C003', rule: 'Factory Act 1948 — PPE Compliance', status: ppeStatus, evidence: `${workersList.filter(w => w.ppeStatus?.toLowerCase() === 'compliant').length}/${workersList.length || 1} workers compliant`, zone: 'Zone E, F' },
     { id: 'C004', rule: 'OISD-STD-105 — Permit to Work', status: permitStatus, evidence: `Permit compliance score at ${avgPermitCompliance}%`, zone: 'Zone F' },
-    { id: 'C005', rule: 'IS 15683 — Fire Protection', status: 'pass', evidence: 'All fire suppression systems active and charged', zone: 'All Zones' },
-    { id: 'C006', rule: 'OISD-GDN-169 — Confined Space', status: 'warning', evidence: 'Oxygen level monitoring verified', zone: 'Zone F' },
+    { id: 'C005', rule: 'IS 15683 — Fire Protection', status: fireStatus, evidence: fireEvidence, zone: 'All Zones' },
+    { id: 'C006', rule: 'OISD-GDN-169 — Confined Space', status: confinedStatus, evidence: confinedEvidence, zone: 'Zone F' },
   ];
 
   const passed = complianceChecks.filter(c => c.status === 'pass').length;

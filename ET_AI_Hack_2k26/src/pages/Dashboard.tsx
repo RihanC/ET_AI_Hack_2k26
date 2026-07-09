@@ -8,22 +8,16 @@ import {
   AreaChart, Area, BarChart, Bar, LineChart, Line,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend
 } from 'recharts';
-import { kpiData, trendData24h, alerts, riskFactors, timelineEvents } from '../data/mockData';
+import type { Alert } from '../data/types';
 import './Dashboard.css';
-
-interface DashboardProps {
-  liveKPI: typeof kpiData;
-  liveAlerts: typeof alerts;
-  onNavigate: (page: string) => void;
-}
 
 import { useEffect } from 'react';
 import { timelineApi, dashboardApi } from '../services/api';
 import { getSocket, connectSocket, EVENTS } from '../services/socket';
 
 interface DashboardProps {
-  liveKPI: typeof kpiData;
-  liveAlerts: typeof alerts;
+  liveKPI: any;
+  liveAlerts: Alert[];
   onNavigate: (page: string) => void;
 }
 
@@ -102,9 +96,9 @@ const Dashboard: React.FC<DashboardProps> = ({ liveKPI, liveAlerts, onNavigate }
           : new Date(e.createdAt).toLocaleTimeString('en-IN', { hour12: false }),
         severity: (e.severity || 'info').toLowerCase(),
       }))
-    : timelineEvents.slice(0, 6);
+    : [];
 
-  const displayedTrend = trendData.length > 0 ? trendData : trendData24h;
+  const displayedTrend = trendData;
 
   const dynamicRiskFactors = [
     { factor: 'Gas Exposure Risk', score: Math.round(Math.min(95, liveKPI.riskScore * 0.95)), color: Math.round(Math.min(95, liveKPI.riskScore * 0.95)) >= 70 ? '#EF4444' : '#F59E0B' },

@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Search, Filter, Clock, Cpu, Users, FileText, Zap, Brain, ChevronRight, AlertTriangle } from 'lucide-react';
-import { timelineEvents as mockTimeline } from '../data/mockData';
-import type { TimelineEvent } from '../data/mockData';
+import type { TimelineEvent } from '../data/types';
 import { timelineApi } from '../services/api';
 import { getSocket, connectSocket, EVENTS } from '../services/socket';
 import './Timeline.css';
@@ -50,7 +49,7 @@ function mapApiTimeline(e: any): TimelineEvent {
 }
 
 const Timeline: React.FC<TimelineProps> = ({ onNavigate }) => {
-  const [timelineList, setTimelineList] = useState<TimelineEvent[]>(mockTimeline);
+  const [timelineList, setTimelineList] = useState<TimelineEvent[]>([]);
   const [search, setSearch] = useState('');
   const [catFilter, setCatFilter] = useState<string>('all');
   const [sevFilter, setSevFilter] = useState<string>('all');
@@ -60,7 +59,7 @@ const Timeline: React.FC<TimelineProps> = ({ onNavigate }) => {
   const fetchTimeline = async () => {
     try {
       const res = await timelineApi.getAll('limit=50');
-      if (res.success && Array.isArray(res.data) && res.data.length > 0) {
+      if (res.success && Array.isArray(res.data)) {
         setTimelineList(res.data.map(mapApiTimeline));
       }
     } catch (err) {

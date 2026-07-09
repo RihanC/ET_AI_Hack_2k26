@@ -1,9 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { FileText, Clock, Users, Zap, AlertTriangle, CheckCircle, X, Brain, ChevronRight } from 'lucide-react';
-import { permits as mockPermits, workers as mockWorkers } from '../data/mockData';
 import { permitsApi, workersApi } from '../services/api';
 import { getSocket, connectSocket, EVENTS } from '../services/socket';
-import type { Permit } from '../data/mockData';
+import type { Permit } from '../data/types';
 import './ActivePermits.css';
 
 interface ActivePermitsProps {
@@ -54,8 +53,8 @@ function mapApiWorker(w: any): any {
 }
 
 const ActivePermits: React.FC<ActivePermitsProps> = ({ onNavigate }) => {
-  const [permitsList, setPermitsList] = useState<Permit[]>(mockPermits);
-  const [workersList, setWorkersList] = useState<any[]>(mockWorkers);
+  const [permitsList, setPermitsList] = useState<Permit[]>([]);
+  const [workersList, setWorkersList] = useState<any[]>([]);
   const [tab, setTab] = useState<'active' | 'expired' | 'pending'>('active');
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);

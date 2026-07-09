@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Search, X, Heart, MapPin, ShieldCheck, ShieldX, Shield, AlertTriangle, ChevronRight, Brain, Clock } from 'lucide-react';
-import { workers as mockWorkers, sensors } from '../data/mockData';
-import type { Worker } from '../data/mockData';
-import { workersApi } from '../services/api';
+import type { Worker, Sensor } from '../data/types';
+import { workersApi, sensorsApi } from '../services/api';
 import { getSocket, connectSocket, EVENTS } from '../services/socket';
 import './WorkerMonitor.css';
 
@@ -53,8 +52,28 @@ function mapApiWorker(w: any): Worker {
   };
 }
 
+function mapApiSensor(s: any): Sensor {
+  return {
+    id: s.id,
+    name: s.name,
+    type: (s.type || '').toLowerCase() as Sensor['type'],
+    zone: s.zone?.name || s.zoneName || s.zone || '',
+    value: s.value ?? 0,
+    unit: s.unit || '',
+    min: s.minValue ?? s.min ?? 0,
+    max: s.maxValue ?? s.max ?? 100,
+    threshold: s.threshold ?? 50,
+    status: (s.status || 'online').toLowerCase() as Sensor['status'],
+    lastUpdated: s.lastReadingAt || s.lastUpdated || 'N/A',
+    equipment: s.equipment?.name || s.equipmentName || '',
+    trend: (s.trend || 'stable').toLowerCase() as Sensor['trend'],
+    history: s.history || [],
+  };
+}
+
 const WorkerMonitor: React.FC<WorkerMonitorProps> = ({ onNavigate }) => {
-  const [workersList, setWorkersList] = useState<Worker[]>(mockWorkers);
+  const [workersList, setWorkersList] = useState<Worker[]>([]);
+  const [sensorsList, setSensorsList] = useState<Sensor[]>([]);
   const [search, setSearch] = useState('');
   const [riskFilter, setRiskFilter] = useState('all');
   const [selected, setSelected] = useState<Worker | null>(null);
@@ -62,11 +81,19 @@ const WorkerMonitor: React.FC<WorkerMonitorProps> = ({ onNavigate }) => {
 
   useEffect(() => {
     let active = true;
-    const fetchWorkers = async () => {
+    const fetchData = async () => {
       try {
-        const res = await workersApi.getAll();
-        if (active && res.success && Array.isArray(res.data) && res.data.length > 0) {
-          setWorkersList(res.data.map(mapApiWorker));
+        const [workersRes, sensorsRes] = await Promise.all([
+          workersApi.getAll(),
+          sensorsApi.getAll(),
+        ]);
+        if (active) {
+          if (workersRes.success && Array.isArray(workersRes.data)) {
+            setWorkersList(workersRes.data.map(mapApiWorker));
+          }
+          if (sensorsRes.success && Array.isArray(sensorsRes.data)) {
+            setSensorsList(sensorsRes.data.map(mapApiSensor));
+          }
         }
       } catch (err) {
         console.warn('Worker Monitor api fetch error:', err);
@@ -75,7 +102,7 @@ const WorkerMonitor: React.FC<WorkerMonitorProps> = ({ onNavigate }) => {
       }
     };
 
-    fetchWorkers();
+    fetchData();
 
     const socket = getSocket() || connectSocket();
     const handleWorkerUpdate = (data: any) => {
@@ -89,7 +116,7 @@ const WorkerMonitor: React.FC<WorkerMonitorProps> = ({ onNavigate }) => {
     const handleWorkerMovement = (data: any) => {
       if (active && data?.id) {
         // Refetch or update
-        fetchWorkers();
+        fetchData();
       }
     };
 
@@ -323,7 +350,7 @@ const WorkerMonitor: React.FC<WorkerMonitorProps> = ({ onNavigate }) => {
               {/* Nearby Sensors */}
               <div style={{padding:'12px 16px',borderBottom:'1px solid var(--border-color)'}}>
                 <div className="label mb-2">Nearby Sensors</div>
-                {sensors.filter(s => s.zone === selected.zone).slice(0,2).map(s => (
+                {sensorsList.filter(s => s.zone === selected.zone).slice(0,2).map(s => (
                   <div key={s.id} className="panel-sensor-row" onClick={() => onNavigate('sensors')}>
                     <div>
                       <div className="panel-sensor-name">{s.name.split(' — ')[0]}</div>
@@ -334,7 +361,7 @@ const WorkerMonitor: React.FC<WorkerMonitorProps> = ({ onNavigate }) => {
                     </span>
                   </div>
                 ))}
-                {sensors.filter(s => s.zone === selected.zone).length === 0 && (
+                {sensorsList.filter(s => s.zone === selected.zone).length === 0 && (
                   <div className="text-sm text-muted">No sensors in current zone</div>
                 )}
               </div>

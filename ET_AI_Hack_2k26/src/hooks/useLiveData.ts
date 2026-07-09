@@ -8,8 +8,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { dashboardApi, sensorsApi, alertsApi } from '../services/api';
 import { getSocket, connectSocket, EVENTS } from '../services/socket';
 import { useAuth } from '../context/AuthContext';
-import { sensors as mockSensors, alerts as mockAlerts, kpiData as mockKpi } from '../data/mockData';
-import type { Sensor, Alert } from '../data/mockData';
+import type { Sensor, Alert } from '../data/types';
 
 interface KpiState {
   plantHealth: number;
@@ -82,9 +81,20 @@ function generateHistory(base: number, variance: number, hours: number) {
 
 export function useLiveData() {
   const { isAuthenticated } = useAuth();
-  const [liveSensors, setLiveSensors] = useState<Sensor[]>(mockSensors);
-  const [liveAlerts, setLiveAlerts] = useState<Alert[]>(mockAlerts);
-  const [liveKPI, setLiveKPI] = useState<KpiState>(mockKpi);
+  const [liveSensors, setLiveSensors] = useState<Sensor[]>([]);
+  const [liveAlerts, setLiveAlerts] = useState<Alert[]>([]);
+  const [liveKPI, setLiveKPI] = useState<KpiState>({
+    plantHealth: 100,
+    riskScore: 0,
+    activeWorkers: 0,
+    sensorsOnline: 0,
+    sensorsTotal: 0,
+    activePermits: 0,
+    criticalAlerts: 0,
+    warningAlerts: 0,
+    incidentFreeDays: 0,
+    complianceScore: 100,
+  });
   const [currentTime, setCurrentTime] = useState(new Date());
   const [backendAvailable, setBackendAvailable] = useState(false);
 
@@ -201,35 +211,7 @@ export function useLiveData() {
     };
   }, [backendAvailable]);
 
-  // Gentle mock fluctuation fallback when no backend
-  useEffect(() => {
-    if (backendAvailable) return;
-
-    const sensorTimer = setInterval(() => {
-      setLiveSensors(prev =>
-        prev.map(sensor => {
-          const noise = (Math.random() - 0.5) * 0.06 * sensor.value;
-          const newValue = parseFloat(
-            Math.max(sensor.min, Math.min(sensor.max * 1.1, sensor.value + noise)).toFixed(2)
-          );
-          const ratio = newValue / sensor.threshold;
-          let status: typeof sensor.status = 'online';
-          if (ratio >= 1.0) status = 'critical';
-          else if (ratio >= 0.8) status = 'warning';
-          else if (sensor.status === 'offline') status = 'offline';
-          return { ...sensor, value: newValue, status, lastUpdated: 'just now' };
-        })
-      );
-
-      setLiveKPI(prev => ({
-        ...prev,
-        plantHealth: Math.max(60, Math.min(95, prev.plantHealth + (Math.random() - 0.5) * 1.5)),
-        riskScore: Math.max(50, Math.min(90, prev.riskScore + (Math.random() - 0.5) * 2)),
-      }));
-    }, 3000);
-
-    return () => clearInterval(sensorTimer);
-  }, [backendAvailable]);
+  // No mock fluctuation fallback
 
   const acknowledgeAlert = useCallback(
     async (id: string) => {

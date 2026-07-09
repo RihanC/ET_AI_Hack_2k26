@@ -1,6 +1,6 @@
 // ============================================================
-// ISIP — Database Seed Script
-// Populates the database with default mock data matching frontend
+// ISIP — Database Seed Script (Lightweight Mock Data)
+// Populates PostgreSQL with a fast, light dataset of 12 sensors.
 // ============================================================
 
 import { PrismaClient } from '@prisma/client';
@@ -9,10 +9,11 @@ import bcrypt from 'bcryptjs';
 const prisma = new PrismaClient();
 
 async function main() {
-  console.log('🌱 Starting database seeding...');
+  console.log('🌱 Starting database seeding (Lightweight)...');
 
   // 1. Clean existing data
-  console.log('Cleaning existing data...');
+  console.log('Cleaning existing database tables...');
+  await prisma.workerMovement.deleteMany();
   await prisma.permitEquipment.deleteMany();
   await prisma.timelineEvent.deleteMany();
   await prisma.alert.deleteMany();
@@ -24,228 +25,301 @@ async function main() {
   await prisma.report.deleteMany();
   await prisma.user.deleteMany();
 
-  // 2. Create Users
+  // 2. Create 4 Users
   console.log('Creating users...');
   const hashedPassword = await bcrypt.hash('test@123', 12);
   
-  const admin = await prisma.user.create({
-    data: {
-      email: 'admin@isip.com',
-      username: 'test',
-      password: hashedPassword,
-      firstName: 'Priya',
-      lastName: 'Singh',
-      role: 'ADMIN',
-    },
-  });
+  const userSpecs = [
+    { email: 'admin@isip.com', username: 'test', role: 'ADMIN', firstName: 'Priya', lastName: 'Singh' },
+    { email: 'safety@isip.com', username: 'safety_officer', role: 'SAFETY_OFFICER', firstName: 'Ravi', lastName: 'Patel' },
+    { email: 'operator1@isip.com', username: 'operator_arjun', role: 'OPERATOR', firstName: 'Arjun', lastName: 'Sharma' },
+    { email: 'tech1@isip.com', username: 'tech_deepak', role: 'TECHNICIAN', firstName: 'Deepak', lastName: 'Verma' },
+  ];
 
-  const safetyOfficer = await prisma.user.create({
-    data: {
-      email: 'safety@isip.com',
-      username: 'safety_officer',
-      password: hashedPassword,
-      firstName: 'Ravi',
-      lastName: 'Patel',
-      role: 'SAFETY_OFFICER',
-    },
-  });
+  const createdUsers = [];
+  for (const userConfig of userSpecs) {
+    const user = await prisma.user.create({
+      data: {
+        email: userConfig.email,
+        username: userConfig.username,
+        password: hashedPassword,
+        firstName: userConfig.firstName,
+        lastName: userConfig.lastName,
+        role: userConfig.role,
+        isActive: true,
+      }
+    });
+    createdUsers.push(user);
+  }
+  const adminUser = createdUsers[0];
+  const safetyOfficer = createdUsers[1];
 
-  // 3. Create Zones
-  console.log('Creating zones...');
-  const zoneA = await prisma.zone.create({
-    data: { name: 'Zone A - Blast Furnace', code: 'ZONE-A', riskLevel: 'WARNING', latitude: 12.9716, longitude: 77.5946 }
-  });
-  const zoneB = await prisma.zone.create({
-    data: { name: 'Zone B - Converter', code: 'ZONE-B', riskLevel: 'WARNING', latitude: 12.9717, longitude: 77.5947 }
-  });
-  const zoneC = await prisma.zone.create({
-    data: { name: 'Zone C - Boiler Room', code: 'ZONE-C', riskLevel: 'SAFE', latitude: 12.9718, longitude: 77.5948 }
-  });
-  const zoneD = await prisma.zone.create({
-    data: { name: 'Zone D - Chimney', code: 'ZONE-D', riskLevel: 'SAFE', latitude: 12.9719, longitude: 77.5949 }
-  });
-  const zoneE = await prisma.zone.create({
-    data: { name: 'Zone E - Compressor Station', code: 'ZONE-E', riskLevel: 'WARNING', latitude: 12.9720, longitude: 77.5950 }
-  });
-  const zoneF = await prisma.zone.create({
-    data: { name: 'Zone F - Tank Farm', code: 'ZONE-F', riskLevel: 'CRITICAL', latitude: 12.9721, longitude: 77.5951 }
-  });
-  const zoneG = await prisma.zone.create({
-    data: { name: 'Zone G - Rolling Mill', code: 'ZONE-G', riskLevel: 'SAFE', latitude: 12.9722, longitude: 77.5952 }
-  });
-  const zoneH = await prisma.zone.create({
-    data: { name: 'Zone H - Gas Plant', code: 'ZONE-H', riskLevel: 'SAFE', latitude: 12.9723, longitude: 77.5953 }
-  });
-  const zoneI = await prisma.zone.create({
-    data: { name: 'Zone I - Electrolyzer', code: 'ZONE-I', riskLevel: 'WARNING', latitude: 12.9724, longitude: 77.5954 }
-  });
-  const controlRoom = await prisma.zone.create({
-    data: { name: 'Control Room', code: 'CTRL-RM', riskLevel: 'SAFE', latitude: 12.9725, longitude: 77.5955 }
-  });
+  // 3. Create 3 Zones (matching plant map zones)
+  console.log('Creating 3 zones...');
+  const zoneNames = [
+    { name: 'Zone A - Blast Furnace', code: 'ZONE-A', riskLevel: 'WARNING', lat: 12.9716, lng: 77.5946 },
+    { name: 'Zone B - Converter Bay', code: 'ZONE-B', riskLevel: 'SAFE', lat: 12.9717, lng: 77.5947 },
+    { name: 'Zone F - Tank Farm Area', code: 'ZONE-F', riskLevel: 'CRITICAL', lat: 12.9721, lng: 77.5951 },
+  ];
 
-  // 4. Create Equipment
+  const createdZones = [];
+  for (const z of zoneNames) {
+    const zone = await prisma.zone.create({
+      data: {
+        name: z.name,
+        code: z.code,
+        riskLevel: z.riskLevel,
+        latitude: z.lat,
+        longitude: z.lng,
+        isActive: true,
+      }
+    });
+    createdZones.push(zone);
+  }
+
+  // 4. Create 4 Equipment Items
   console.log('Creating equipment...');
-  const eqBF1 = await prisma.equipment.create({
-    data: { name: 'Blast Furnace Unit 1', code: 'BF-1', type: 'FURNACE', status: 'OPERATIONAL', zoneId: zoneA.id }
-  });
-  const eqCV2 = await prisma.equipment.create({
-    data: { name: 'Converter Unit 2', code: 'CV-2', type: 'CONVERTER', status: 'OPERATIONAL', zoneId: zoneB.id }
-  });
-  const eqB3 = await prisma.equipment.create({
-    data: { name: 'Steam Boiler B3', code: 'B3', type: 'BOILER', status: 'OPERATIONAL', zoneId: zoneC.id }
-  });
-  const eqC3 = await prisma.equipment.create({
-    data: { name: 'Compressor C3', code: 'C3', type: 'COMPRESSOR', status: 'MAINTENANCE', zoneId: zoneE.id }
-  });
-  const eqT14 = await prisma.equipment.create({
-    data: { name: 'Tank T-14', code: 'T-14', type: 'TANK', status: 'OPERATIONAL', zoneId: zoneF.id }
-  });
-  const eqM1 = await prisma.equipment.create({
-    data: { name: 'Rolling Mill M1', code: 'RM-1', type: 'MILL', status: 'OPERATIONAL', zoneId: zoneG.id }
-  });
+  const equipmentSpecs = [
+    { name: 'Blast Furnace Unit 1', code: 'BF-1', type: 'FURNACE', status: 'OPERATIONAL', zoneIdx: 0 },
+    { name: 'Converter Unit 1', code: 'CV-1', type: 'CONVERTER', status: 'OPERATIONAL', zoneIdx: 1 },
+    { name: 'Compressor C3', code: 'C3', type: 'COMPRESSOR', status: 'OPERATIONAL', zoneIdx: 1 },
+    { name: 'Tank T-14', code: 'T-14', type: 'TANK', status: 'OPERATIONAL', zoneIdx: 2 },
+  ];
 
-  // 5. Create Sensors
-  console.log('Creating sensors...');
-  await prisma.sensor.createMany({
-    data: [
-      { name: 'H₂S Monitor — Blast Furnace A', type: 'GAS', value: 8.4, unit: 'ppm', min: 0, max: 20, threshold: 10, status: 'WARNING', trend: 'UP', zoneId: zoneA.id, equipmentId: eqBF1.id },
-      { name: 'CO Detector — Converter Bay', type: 'GAS', value: 23.1, unit: 'ppm', min: 0, max: 50, threshold: 25, status: 'WARNING', trend: 'UP', zoneId: zoneB.id, equipmentId: eqCV2.id },
-      { name: 'Temperature — Furnace Outlet', type: 'TEMPERATURE', value: 1487, unit: '°C', min: 1200, max: 1600, threshold: 1500, status: 'WARNING', trend: 'UP', zoneId: zoneA.id, equipmentId: eqBF1.id },
-      { name: 'Pressure — Steam Header', type: 'PRESSURE', value: 12.8, unit: 'bar', min: 8, max: 16, threshold: 14, status: 'ONLINE', trend: 'STABLE', zoneId: zoneC.id, equipmentId: eqB3.id },
-      { name: 'SO₂ Sensor — Stack Emission', type: 'GAS', value: 4.2, unit: 'mg/m³', min: 0, max: 10, threshold: 8, status: 'ONLINE', trend: 'STABLE', zoneId: zoneD.id },
-      { name: 'Vibration — Compressor #3', type: 'VIBRATION', value: 7.8, unit: 'mm/s', min: 0, max: 12, threshold: 8, status: 'WARNING', trend: 'UP', zoneId: zoneE.id, equipmentId: eqC3.id },
-      { name: 'O₂ Deficiency — Tank Farm', type: 'GAS', value: 18.2, unit: '%', min: 16, max: 21, threshold: 19.5, status: 'CRITICAL', trend: 'DOWN', zoneId: zoneF.id, equipmentId: eqT14.id },
-      { name: 'Flame Detector — Rolling Mill', type: 'TEMPERATURE', value: 342, unit: '°C', min: 200, max: 500, threshold: 450, status: 'ONLINE', trend: 'STABLE', zoneId: zoneG.id, equipmentId: eqM1.id },
-      { name: 'CH₄ Detector — Gas Plant', type: 'GAS', value: 1.8, unit: '%LEL', min: 0, max: 5, threshold: 3, status: 'ONLINE', trend: 'STABLE', zoneId: zoneH.id },
-      { name: 'Flow Rate — Cooling Water', type: 'FLOW', value: 420, unit: 'L/min', min: 350, max: 500, threshold: 380, status: 'ONLINE', trend: 'STABLE', zoneId: zoneA.id },
-      { name: 'Pressure — Hydraulic System', type: 'PRESSURE', value: 28.6, unit: 'bar', min: 20, max: 35, threshold: 32, status: 'ONLINE', trend: 'DOWN', zoneId: zoneG.id },
-      { name: 'H₂ Sensor — Electrolyzer', type: 'GAS', value: 0.4, unit: '%', min: 0, max: 1, threshold: 0.5, status: 'WARNING', trend: 'UP', zoneId: zoneI.id }
-    ]
-  });
+  const createdEquipment = [];
+  for (const eq of equipmentSpecs) {
+    const equipment = await prisma.equipment.create({
+      data: {
+        name: eq.name,
+        code: eq.code,
+        type: eq.type,
+        status: eq.status,
+        zoneId: createdZones[eq.zoneIdx].id
+      }
+    });
+    createdEquipment.push(equipment);
+  }
 
-  // 6. Create Permits
-  console.log('Creating permits...');
-  const permit1 = await prisma.permit.create({
-    data: {
-      id: 'PTW-2024-0041',
-      type: 'HOT_WORK',
-      title: 'Blast Furnace Tapping — Unit 1',
-      status: 'ACTIVE',
-      riskLevel: 'HIGH',
-      compliance: 91,
-      startTime: new Date('2026-07-06T06:00:00Z'),
-      endTime: new Date('2026-07-06T14:00:00Z'),
-      issuerId: admin.id,
-      zoneId: zoneA.id,
-      aiRecommendation: 'Continuous H₂S monitoring required. Temperature trending upward — consider early termination at 13:00 if temp exceeds 1500°C.'
-    }
-  });
+  // 5. Create EXACTLY 12 Sensors (4 per zone)
+  console.log('Creating exactly 12 sensors...');
+  const sensorSpecs = [
+    // Zone A: Blast Furnace
+    { id: 'SEN-1001', name: 'Temperature Sensor 1 — Zone A', type: 'TEMPERATURE', value: 1450, unit: '°C', min: 0, max: 2000, threshold: 1200, status: 'WARNING', trend: 'UP', zoneIdx: 0, eqIdx: 0 },
+    { id: 'SEN-1002', name: 'Gas Sensor 2 (H₂S) — Zone A', type: 'GAS', value: 8.4, unit: 'ppm', min: 0, max: 100, threshold: 25, status: 'ONLINE', trend: 'STABLE', zoneIdx: 0, eqIdx: 0 },
+    { id: 'SEN-1003', name: 'Vibration Sensor 3 — Zone A', type: 'VIBRATION', value: 4.2, unit: 'mm/s', min: 0, max: 20, threshold: 12, status: 'ONLINE', trend: 'STABLE', zoneIdx: 0, eqIdx: 0 },
+    { id: 'SEN-1004', name: 'Pressure Sensor 4 — Zone A', type: 'PRESSURE', value: 24.5, unit: 'bar', min: 0, max: 50, threshold: 35, status: 'ONLINE', trend: 'STABLE', zoneIdx: 0, eqIdx: 0 },
+    // Zone B: Converter Bay
+    { id: 'SEN-1005', name: 'Temperature Sensor 5 — Zone B', type: 'TEMPERATURE', value: 1100, unit: '°C', min: 0, max: 2000, threshold: 1200, status: 'ONLINE', trend: 'STABLE', zoneIdx: 1, eqIdx: 1 },
+    { id: 'SEN-1006', name: 'Gas Sensor 6 (CO) — Zone B', type: 'GAS', value: 12.1, unit: 'ppm', min: 0, max: 100, threshold: 25, status: 'ONLINE', trend: 'STABLE', zoneIdx: 1, eqIdx: 1 },
+    { id: 'SEN-1007', name: 'Vibration Sensor 7 — Zone B', type: 'VIBRATION', value: 7.8, unit: 'mm/s', min: 0, max: 20, threshold: 12, status: 'WARNING', trend: 'UP', zoneIdx: 1, eqIdx: 2 },
+    { id: 'SEN-1008', name: 'Pressure Sensor 8 — Zone B', type: 'PRESSURE', value: 18.2, unit: 'bar', min: 0, max: 50, threshold: 35, status: 'ONLINE', trend: 'STABLE', zoneIdx: 1, eqIdx: 1 },
+    // Zone F: Tank Farm
+    { id: 'SEN-1009', name: 'Oxygen Sensor 9 (O₂) — Zone F', type: 'GAS', value: 18.2, unit: '%', min: 0, max: 25, threshold: 19.5, status: 'CRITICAL', trend: 'DOWN', zoneIdx: 2, eqIdx: 3 },
+    { id: 'SEN-1010', name: 'Gas Sensor 10 (Flammable) — Zone F', type: 'GAS', value: 1.5, unit: 'ppm', min: 0, max: 100, threshold: 25, status: 'ONLINE', trend: 'STABLE', zoneIdx: 2, eqIdx: 3 },
+    { id: 'SEN-1011', name: 'Vibration Sensor 11 — Zone F', type: 'VIBRATION', value: 1.8, unit: 'mm/s', min: 0, max: 20, threshold: 12, status: 'ONLINE', trend: 'STABLE', zoneIdx: 2, eqIdx: 3 },
+    { id: 'SEN-1012', name: 'Pressure Sensor 12 — Zone F', type: 'PRESSURE', value: 3.4, unit: 'bar', min: 0, max: 50, threshold: 35, status: 'ONLINE', trend: 'STABLE', zoneIdx: 2, eqIdx: 3 },
+  ];
 
-  const permit2 = await prisma.permit.create({
-    data: {
-      id: 'PTW-2024-0042',
-      type: 'CONFINED_SPACE',
-      title: 'Tank T-14 Internal Inspection',
-      status: 'ACTIVE',
-      riskLevel: 'CRITICAL',
-      compliance: 62,
-      startTime: new Date('2026-07-06T07:00:00Z'),
-      endTime: new Date('2026-07-06T11:00:00Z'),
-      issuerId: safetyOfficer.id,
-      zoneId: zoneF.id,
-      aiRecommendation: '⚠️ CRITICAL: O₂ level at 18.2% (below 19.5% threshold). Worker W004 PPE non-compliant. Recommend immediate evacuation and permit suspension.'
-    }
-  });
+  for (const s of sensorSpecs) {
+    await prisma.sensor.create({
+      data: {
+        id: s.id,
+        name: s.name,
+        type: s.type,
+        value: s.value,
+        unit: s.unit,
+        min: s.min,
+        max: s.max,
+        threshold: s.threshold,
+        status: s.status,
+        trend: s.trend,
+        zoneId: createdZones[s.zoneIdx].id,
+        equipmentId: createdEquipment[s.eqIdx].id,
+        lastReading: new Date(),
+      }
+    });
+  }
 
-  const permit3 = await prisma.permit.create({
-    data: {
-      id: 'PTW-2024-0043',
-      type: 'ELECTRICAL',
-      title: 'Compressor C3 Maintenance',
-      status: 'ACTIVE',
-      riskLevel: 'HIGH',
-      compliance: 78,
-      startTime: new Date('2026-07-06T08:00:00Z'),
-      endTime: new Date('2026-07-06T12:00:00Z'),
-      issuerId: admin.id,
-      zoneId: zoneE.id,
-      aiRecommendation: 'Worker W003 missing face shield (partial PPE). Vibration escalating — monitor compressor bearing temperature closely.'
-    }
-  });
+  // 6. Create 5 Permits
+  console.log('Creating 5 permits...');
+  const permitSpecs = [
+    { id: 'PTW-2026-1001', type: 'HOT_WORK', title: 'Welding & Cutting in Blast Furnace #1', status: 'ACTIVE', riskLevel: 'MEDIUM', compliance: 85, zoneIdx: 0 },
+    { id: 'PTW-2026-1002', type: 'CONFINED_SPACE', title: 'Internal Tank Inspection Tank T-14', status: 'ACTIVE', riskLevel: 'CRITICAL', compliance: 62, zoneIdx: 2 },
+    { id: 'PTW-2026-1003', type: 'ELECTRICAL', title: 'Substation Transformer Lockout', status: 'PENDING', riskLevel: 'HIGH', compliance: 90, zoneIdx: 0 },
+    { id: 'PTW-2026-1004', type: 'WORKING_AT_HEIGHT', title: 'Exhaust Duct Gasket Replacement', status: 'EXPIRED', riskLevel: 'HIGH', compliance: 75, zoneIdx: 1 },
+    { id: 'PTW-2026-1005', type: 'CHEMICAL', title: 'Acid Transloading operations', status: 'SUSPENDED', riskLevel: 'MEDIUM', compliance: 80, zoneIdx: 2 },
+  ];
+
+  const createdPermits = [];
+  for (const p of permitSpecs) {
+    const permit = await prisma.permit.create({
+      data: {
+        id: p.id,
+        type: p.type,
+        title: p.title,
+        status: p.status,
+        riskLevel: p.riskLevel,
+        compliance: p.compliance,
+        startTime: new Date(Date.now() - 3600000 * 24),
+        endTime: new Date(Date.now() + 3600000 * 12),
+        issuerId: adminUser.id,
+        zoneId: createdZones[p.zoneIdx].id,
+        aiRecommendation: `Enforce specialized PPE checks and double-verify ventilation protocols.`
+      }
+    });
+    createdPermits.push(permit);
+  }
 
   // Create PermitEquipment links
-  await prisma.permitEquipment.createMany({
-    data: [
-      { permitId: permit1.id, equipmentId: eqBF1.id },
-      { permitId: permit2.id, equipmentId: eqT14.id },
-      { permitId: permit3.id, equipmentId: eqC3.id }
-    ]
+  await prisma.permitEquipment.create({
+    data: { permitId: createdPermits[0].id, equipmentId: createdEquipment[0].id }
+  });
+  await prisma.permitEquipment.create({
+    data: { permitId: createdPermits[1].id, equipmentId: createdEquipment[3].id }
   });
 
-  // 7. Create Workers
-  console.log('Creating workers...');
-  await prisma.worker.createMany({
-    data: [
-      { id: 'W001', name: 'Arjun Sharma', role: 'Furnace Operator', badge: 'B-1042', status: 'ACTIVE', ppeStatus: 'COMPLIANT', riskLevel: 'HIGH', heartRate: 94, gasExposure: 7.2, task: 'Tapping operation', zoneId: zoneA.id, permitId: permit1.id },
-      { id: 'W002', name: 'Ravi Patel', role: 'Safety Officer', badge: 'B-0891', status: 'ACTIVE', ppeStatus: 'COMPLIANT', riskLevel: 'MEDIUM', heartRate: 78, gasExposure: 18.4, task: 'Safety Inspection', zoneId: zoneB.id },
-      { id: 'W003', name: 'Deepak Verma', role: 'Maintenance Technician', badge: 'B-2234', status: 'ACTIVE', ppeStatus: 'PARTIAL', riskLevel: 'HIGH', heartRate: 88, gasExposure: 2.1, task: 'Vibration analysis', zoneId: zoneE.id, permitId: permit3.id },
-      { id: 'W004', name: 'Suresh Kumar', role: 'Process Operator', badge: 'B-3341', status: 'ACTIVE', ppeStatus: 'NON_COMPLIANT', riskLevel: 'CRITICAL', heartRate: 105, gasExposure: 0.8, task: 'Tank inspection', zoneId: zoneF.id, permitId: permit2.id },
-      { id: 'W005', name: 'Manish Gupta', role: 'Electrical Technician', badge: 'B-1893', status: 'ACTIVE', ppeStatus: 'COMPLIANT', riskLevel: 'MEDIUM', heartRate: 82, gasExposure: 0.3, task: 'Electrical maintenance', zoneId: zoneG.id },
-      { id: 'W006', name: 'Priya Singh', role: 'Safety Inspector', badge: 'B-0523', status: 'ACTIVE', ppeStatus: 'COMPLIANT', riskLevel: 'LOW', heartRate: 72, gasExposure: 0.1, task: 'Monitoring operations', zoneId: controlRoom.id },
-      { id: 'W007', name: 'Rajesh Nair', role: 'Crane Operator', badge: 'B-4421', status: 'ACTIVE', ppeStatus: 'COMPLIANT', riskLevel: 'MEDIUM', heartRate: 80, gasExposure: 0.5, task: 'Material handling', zoneId: zoneG.id },
-      { id: 'W008', name: 'Amit Joshi', role: 'Boiler Operator', badge: 'B-3092', status: 'ACTIVE', ppeStatus: 'COMPLIANT', riskLevel: 'LOW', heartRate: 76, gasExposure: 1.2, task: 'Steam pressure monitoring', zoneId: zoneC.id }
-    ]
-  });
+  // 7. Create 5 Workers
+  console.log('Creating 5 workers...');
+  const workerSpecs = [
+    { id: 'W011', name: 'Arjun Sharma', role: 'Furnace Operator', badge: 'B-2001', shift: 'Morning', status: 'ACTIVE', ppeStatus: 'COMPLIANT', riskLevel: 'medium', heartRate: 94, gasExposure: 7.2, zoneIdx: 0, permitIdx: 0 },
+    { id: 'W012', name: 'Ravi Patel', role: 'Safety Inspector', badge: 'B-2002', shift: 'Morning', status: 'ACTIVE', ppeStatus: 'COMPLIANT', riskLevel: 'low', heartRate: 72, gasExposure: 0.1, zoneIdx: 1, permitIdx: null },
+    { id: 'W013', name: 'Deepak Verma', role: 'Maintenance Technician', badge: 'B-2003', shift: 'Morning', status: 'ACTIVE', ppeStatus: 'PARTIAL', riskLevel: 'high', heartRate: 85, gasExposure: 1.2, zoneIdx: 1, permitIdx: null },
+    { id: 'W014', name: 'Suresh Kumar', role: 'Process Operator', badge: 'B-2004', shift: 'Morning', status: 'ACTIVE', ppeStatus: 'NON_COMPLIANT', riskLevel: 'critical', heartRate: 105, gasExposure: 14.5, zoneIdx: 2, permitIdx: 1 },
+    { id: 'W015', name: 'Amit Joshi', role: 'Electrical Technician', badge: 'B-2005', shift: 'Afternoon', status: 'OFF_SHIFT', ppeStatus: 'COMPLIANT', riskLevel: 'low', heartRate: 70, gasExposure: 0.0, zoneIdx: 0, permitIdx: null },
+  ];
 
-  // 8. Create Alerts
-  console.log('Creating alerts...');
-  await prisma.alert.createMany({
-    data: [
-      { id: 'ALT001', type: 'GAS', severity: 'CRITICAL', title: 'O₂ Deficiency Detected', description: 'Oxygen level dropped to 18.2% in Zone F - Tank Farm. Worker W004 at risk.', acknowledged: false, source: 'S007', zoneId: zoneF.id },
-      { id: 'ALT002', type: 'WORKER', severity: 'CRITICAL', title: 'PPE Non-Compliance', description: 'Worker Suresh Kumar (W004) entered confined space without proper PPE.', acknowledged: false, source: 'W004', zoneId: zoneF.id },
-      { id: 'ALT003', type: 'GAS', severity: 'WARNING', title: 'H₂S Level Rising', description: 'H₂S concentration trending up to 8.4 ppm. Threshold is 10 ppm.', acknowledged: false, source: 'S001', zoneId: zoneA.id },
-      { id: 'ALT004', type: 'GAS', severity: 'WARNING', title: 'CO Elevated', description: 'Carbon monoxide at 23.1 ppm, approaching 25 ppm threshold.', acknowledged: true, source: 'S002', zoneId: zoneB.id, userId: admin.id },
-      { id: 'ALT005', type: 'EQUIPMENT', severity: 'WARNING', title: 'Compressor Vibration High', description: 'Compressor C3 vibration at 7.8 mm/s approaching 8 mm/s limit.', acknowledged: false, source: 'S006', zoneId: zoneE.id }
-    ]
-  });
-
-  // 9. Create Timeline Events
-  console.log('Creating timeline events...');
-  await prisma.timelineEvent.createMany({
-    data: [
-      { id: 'TL001', category: 'AI', title: 'AI Risk Alert Generated', description: 'Compound risk detected in Zone F: O₂ deficiency + active confined space permit + worker presence', severity: 'CRITICAL', zoneId: zoneF.id, relatedId: 'ALT001' },
-      { id: 'TL002', category: 'SENSOR', title: 'O₂ Sensor Critical Threshold', description: 'S007 oxygen level dropped below 19.5% safety threshold to 18.2%', severity: 'CRITICAL', zoneId: zoneF.id, relatedId: 'ALT001' },
-      { id: 'TL003', category: 'WORKER', title: 'PPE Violation Detected', description: 'Worker W004 (Suresh Kumar) entered confined space without full PPE compliance', severity: 'CRITICAL', zoneId: zoneF.id, relatedId: 'W004' },
-      { id: 'TL004', category: 'SENSOR', title: 'H₂S Level Rising', description: 'H₂S concentration increased from 6.1 to 8.4 ppm over 15 minutes', severity: 'WARNING', zoneId: zoneA.id, relatedId: 'S001' },
-      { id: 'TL005', category: 'PERMIT', title: 'Permit PTW-0043 Activated', description: 'Compressor C3 maintenance permit activated for worker Deepak Verma', severity: 'INFO', zoneId: zoneE.id, relatedId: 'PTW-2024-0043' }
-    ]
-  });
-
-  // 10. Create Reports
-  console.log('Creating reports...');
-  await prisma.report.create({
-    data: {
-      name: 'Daily Safety Report',
-      description: 'Complete daily overview of all safety incidents, sensor data, and worker activity',
-      type: 'DAILY_SAFETY',
-      frequency: 'DAILY',
-      status: 'COMPLETED',
-      generatedById: admin.id,
-      generatedAt: new Date(),
+  for (const w of workerSpecs) {
+    await prisma.worker.create({
       data: {
-        incidentFreeDays: 47,
-        complianceScore: 73,
-        kpiSummary: "Morning Shift Assessment: Plant safety is currently at elevated risk due to compound hazards in Zone F."
+        id: w.id,
+        name: w.name,
+        role: w.role,
+        badge: w.badge,
+        shift: w.shift,
+        status: w.status,
+        ppeStatus: w.ppeStatus,
+        riskLevel: w.riskLevel.toUpperCase(),
+        heartRate: w.heartRate,
+        gasExposure: w.gasExposure,
+        task: `Operations task assign for badge ${w.badge}`,
+        zoneId: createdZones[w.zoneIdx].id,
+        permitId: w.permitIdx !== null ? createdPermits[w.permitIdx].id : null,
+        lastSeen: new Date()
       }
-    }
-  });
+    });
+  }
 
-  console.log('✅ Seeding completed successfully!');
+  // 8. Create 5 Alerts
+  console.log('Creating 5 alerts...');
+  const alertSpecs = [
+    { id: 'ALT-1001', type: 'GAS', severity: 'CRITICAL', title: 'Low O₂ Concentration', description: 'Oxygen levels at 18.2% in Confined Space Zone F', source: 'SEN-1009', zoneIdx: 2, ack: false, res: false },
+    { id: 'ALT-1002', type: 'TEMPERATURE', severity: 'WARNING', title: 'High Furnace Temp', description: 'Blast furnace temp at 1450°C exceeding standard limits', source: 'SEN-1001', zoneIdx: 0, ack: true, res: false },
+    { id: 'ALT-1003', type: 'EQUIPMENT', severity: 'WARNING', title: 'Compressor C3 Vibration', description: 'Vibration level at 7.8 mm/s in Zone B', source: 'SEN-1007', zoneIdx: 1, ack: false, res: false },
+    { id: 'ALT-1004', type: 'WORKER', severity: 'CRITICAL', title: 'PPE Violation', description: 'Worker Suresh Kumar (W014) is inside confined space without SCBA', source: 'W014', zoneIdx: 2, ack: false, res: false },
+    { id: 'ALT-1005', type: 'SYSTEM', severity: 'INFO', title: 'Gas Network Connected', description: 'Calibration check successfully finalized on sensor arrays', source: 'SYSTEM', zoneIdx: 1, ack: true, res: true },
+  ];
+
+  for (const a of alertSpecs) {
+    await prisma.alert.create({
+      data: {
+        id: a.id,
+        type: a.type,
+        severity: a.severity,
+        title: a.title,
+        description: a.description,
+        acknowledged: a.ack,
+        resolved: a.res,
+        source: a.source,
+        zoneId: createdZones[a.zoneIdx].id,
+        userId: a.ack ? adminUser.id : null,
+        resolvedById: a.res ? safetyOfficer.id : null,
+        resolvedAt: a.res ? new Date() : null,
+        createdAt: new Date(Date.now() - 3600000)
+      }
+    });
+  }
+
+  // 9. Create 10 Timeline Events
+  console.log('Creating 10 timeline events...');
+  const timelineSpecs = [
+    { category: 'SYSTEM', title: 'ISIP System Online', description: 'Safety telemetry network initialized', severity: 'INFO', zoneIdx: 1 },
+    { category: 'PERMIT', title: 'PTW-2026-1001 Approved', description: 'Hot-work permit activated for Blast Furnace Area', severity: 'INFO', zoneIdx: 0 },
+    { category: 'WORKER', title: 'Worker Entered Zone F', description: 'Suresh Kumar badge B-2004 entered Zone F', severity: 'INFO', zoneIdx: 2 },
+    { category: 'SENSOR', title: 'Oxygen Level Drop Alarm', description: 'O₂ sensor SEN-1009 dropped to 18.2% in Zone F', severity: 'CRITICAL', zoneIdx: 2 },
+    { category: 'AI', title: 'Compound Hazard Flags', description: 'AI identified PPE violation + Low O₂ + Confined Space active in Zone F', severity: 'CRITICAL', zoneIdx: 2 },
+    { category: 'SENSOR', title: 'Blast Furnace Temp Elevated', description: 'Blast furnace temp warning (1450°C) on SEN-1001', severity: 'WARNING', zoneIdx: 0 },
+    { category: 'EQUIPMENT', title: 'Compressor C3 Vibration warning', description: 'Vibrational metrics elevated on SEN-1007', severity: 'WARNING', zoneIdx: 1 },
+    { category: 'PERMIT', title: 'PTW-2026-1005 Suspended', description: 'Chemical permit suspended due to safety alerts', severity: 'WARNING', zoneIdx: 2 },
+    { category: 'WORKER', title: 'Worker Assigned', description: 'Arjun Sharma assigned to shift duties in Zone A', severity: 'INFO', zoneIdx: 0 },
+    { category: 'SYSTEM', title: 'Automatic Ventilation Boost', description: 'System increased ventilation rate by 40% in Zone F', severity: 'INFO', zoneIdx: 2 },
+  ];
+
+  for (let i = 0; i < timelineSpecs.length; i++) {
+    const t = timelineSpecs[i];
+    await prisma.timelineEvent.create({
+      data: {
+        id: `TL-100${i + 1}`,
+        category: t.category,
+        title: t.title,
+        description: t.description,
+        severity: t.severity,
+        timestamp: new Date(Date.now() - 300000 * (10 - i)),
+        zoneId: createdZones[t.zoneIdx].id
+      }
+    });
+  }
+
+  // 10. Create 4 Reports
+  console.log('Creating 4 reports...');
+  const reportSpecs = [
+    { id: 'REP-1001', name: 'Daily Safety handovers Report', type: 'DAILY_SAFETY' },
+    { id: 'REP-1002', name: 'Confined Space incident audit', type: 'INCIDENT' },
+    { id: 'REP-1003', name: 'Composite risk and mitigation report', type: 'RISK_ANALYSIS' },
+    { id: 'REP-1004', name: 'PESO & Factory Act compliance review', type: 'COMPLIANCE' },
+  ];
+
+  for (const r of reportSpecs) {
+    await prisma.report.create({
+      data: {
+        id: r.id,
+        name: r.name,
+        description: `Lightweight seed safety review report for ${r.type}`,
+        type: r.type,
+        frequency: 'DAILY',
+        status: 'COMPLETED',
+        generatedById: adminUser.id,
+        generatedAt: new Date(),
+        data: {
+          complianceScore: 78,
+          incidentCount: 1,
+          durationMs: 14500,
+        }
+      }
+    });
+  }
+
+  // 11. Create 10 Worker Movements
+  console.log('Creating 10 worker movements...');
+  for (let i = 1; i <= 10; i++) {
+    const fromIdx = i % 3;
+    const toIdx = (i + 1) % 3;
+    await prisma.workerMovement.create({
+      data: {
+        id: `MOV-100${i}`,
+        workerId: 'W014',
+        fromZoneId: createdZones[fromIdx].id,
+        toZoneId: createdZones[toIdx].id,
+        timestamp: new Date(Date.now() - 120000 * (10 - i))
+      }
+    });
+  }
+
+  console.log('✅ Database seeded successfully with a lightweight dataset!');
 }
 
 main()
   .catch((e) => {
-    console.error('❌ Error during seeding:', e);
+    console.error('❌ Error during database seeding:', e);
     process.exit(1);
   })
   .finally(async () => {

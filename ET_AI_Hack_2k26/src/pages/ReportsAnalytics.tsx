@@ -10,10 +10,6 @@ import {
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   RadarChart, Radar, PolarGrid, PolarAngleAxis, Legend
 } from 'recharts';
-import {
-  sensors, workers, permits, alerts, kpiData, trendData24h,
-  riskFactors, complianceChecks, timelineEvents
-} from '../data/mockData';
 import './ReportsAnalytics.css';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
@@ -96,54 +92,38 @@ const reportDefs: ReportDef[] = [
 
 // ─── Chart Data ──────────────────────────────────────────────────────────────
 
-const radarData = riskFactors.map(rf => ({
-  subject: rf.factor.split(' ')[0],
-  score: rf.score,
-  safe: 60,
-}));
-
-const workerComplianceData = workers.map(w => ({
-  name: w.name.split(' ')[0],
-  risk: w.riskLevel === 'critical' ? 95 : w.riskLevel === 'high' ? 75 : w.riskLevel === 'medium' ? 50 : 25,
-  heartRate: w.heartRate,
-  exposure: w.gasExposure,
-}));
-
-const sensorHealthData = sensors.map(s => ({
-  name: s.name.split('—')[0].trim().replace(/[₀-₉]/g, ''),
-  value: Math.round((s.value / s.threshold) * 100),
-  threshold: 100,
-  status: s.status,
-}));
-
-const permitComplianceData = permits.filter(p => p.status === 'active').map(p => ({
-  id: p.id.replace('PTW-2024-0', '#'),
-  compliance: p.compliance,
-  risk: p.riskLevel === 'critical' ? 95 : p.riskLevel === 'high' ? 75 : p.riskLevel === 'medium' ? 50 : 25,
-}));
-
-const incidentData = Array.from({ length: 7 }, (_, i) => ({
-  day: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'][i],
-  incidents: [0, 1, 0, 0, 2, 0, 0][i],
-  nearMisses: [2, 3, 1, 4, 2, 1, 0][i],
-  alerts: [4, 6, 3, 5, 8, 2, 1][i],
-}));
+const incidentData = [
+  { day: 'Mon', incidents: 0, nearMisses: 2, alerts: 4 },
+  { day: 'Tue', incidents: 1, nearMisses: 3, alerts: 6 },
+  { day: 'Wed', incidents: 0, nearMisses: 1, alerts: 3 },
+  { day: 'Thu', incidents: 0, nearMisses: 4, alerts: 5 },
+  { day: 'Fri', incidents: 2, nearMisses: 2, alerts: 8 },
+  { day: 'Sat', incidents: 0, nearMisses: 1, alerts: 2 },
+  { day: 'Sun', incidents: 0, nearMisses: 0, alerts: 1 },
+];
 
 // ─── Gemini AI summary ───────────────────────────────────────────────────────
 
 const GEMINI_KEY = import.meta.env.VITE_GEMINI_API_KEY || '';
 
-async function generateAISummary(reportId: string): Promise<string> {
+async function generateAISummary(
+  reportId: string,
+  kpi: any,
+  alertsList: any[],
+  workersList: any[],
+  permitsList: any[],
+  sensorsList: any[]
+): Promise<string> {
   if (!GEMINI_KEY) {
-    return getFallbackSummary(reportId);
+    return getFallbackSummary(reportId, kpi, alertsList, workersList, permitsList, sensorsList);
   }
   const prompts: Record<string, string> = {
-    'daily-safety': `Write a professional Daily Safety Report executive summary for a steel manufacturing plant. Today's data: Risk score 68/100, 2 critical alerts (O₂ deficiency Zone F at 18.2%, PPE non-compliance Worker W004), 4 warnings (H₂S 8.4ppm Zone A, CO 23.1ppm Zone B, compressor vibration 7.8mm/s, low permit compliance). 8 workers active, 11/12 sensors online, 47 incident-free days. Write 3 concise paragraphs: situation summary, key risks, and recommended actions. Use formal safety report language.`,
-    'incident': `Write an Incident Analysis Report summary for a steel plant. Today's incidents: Critical O₂ deficiency (18.2%) in Tank T-14 confined space with non-compliant worker (no SCBA). Near-miss: H₂S trending up in Blast Furnace Zone. Root causes: rescue team not on standby, PPE check bypassed. Write root cause analysis and 3 corrective actions in formal style.`,
-    'ai-risk': `Write an AI Risk Analysis Report summary. Plant risk score: 68/100 trending up. Compound risks: (1) O₂+confined space+PPE non-compliance = 87% escalation probability in Zone F. (2) H₂S+temperature+hot-work = 64% probability in Zone A. Predicted risk score: 74 in 2h, 83 in 6h without intervention. 3 paragraphs: findings, predictions, AI recommendations.`,
-    'compliance': `Write a Regulatory Compliance Report summary for a steel plant. Status: IS 13947 PASS, OISD-GDN-206 PASS (12/12 sensors), Factory Act 1948 FAIL (workers W004 non-compliant, W003 partial), OISD-STD-105 FAIL (PTW-0042 at 62%), IS 15683 PASS, EPA PASS (SO₂ 4.2mg/m³). Overall score: 73/100. Write formal audit-ready 3-paragraph summary covering status, violations, and remediation plan.`,
-    'worker-safety': `Write a Worker Safety Report summary. 8 workers active. Critical: Suresh Kumar (W004) in confined space, PPE non-compliant, heart rate 105bpm, O₂ exposure risk. High: Arjun Sharma (W001) H₂S 7.2ppm exposure, heart rate 94bpm. High: Deepak Verma (W003) partial PPE in compressor area. 5 others within safe parameters. Write worker safety analysis in 3 paragraphs.`,
-    'equipment': `Write an Equipment Health Report summary for a steel plant. 12 sensors: 1 critical (S007 O₂ at 18.2%), 4 warnings (H₂S, CO, vibration 7.8mm/s, H₂). Compressor C3 vibration trending up 12% in 30 min. Blast Furnace temperature at 1487°C approaching 1500°C threshold. 11/12 sensors online. Write equipment health analysis in 3 paragraphs: status, anomalies, maintenance recommendations.`,
+    'daily-safety': `Write a professional Daily Safety Report executive summary for a steel manufacturing plant. Today's data: Risk score ${kpi?.riskScore ?? 0}/100, critical alerts count ${alertsList.filter(a => a.severity === 'critical').length}, active workers count ${workersList.length}, online sensors ${sensorsList.filter(s => s.status === 'online').length}/${sensorsList.length}, compliance score ${kpi?.complianceScore ?? 100}%. Write 3 concise paragraphs: situation summary, key risks, and recommended actions. Use formal safety report language.`,
+    'incident': `Write an Incident Analysis Report summary for a steel plant. Today's incidents: Critical alerts count ${alertsList.filter(a => a.severity === 'critical').length}, warnings count ${alertsList.filter(a => a.severity === 'warning').length}. Non-compliant PPE count is ${workersList.filter(w => w.ppeStatus !== 'compliant').length}. Write root cause analysis and 3 corrective actions in formal style.`,
+    'ai-risk': `Write an AI Risk Analysis Report summary. Plant risk score: ${kpi?.riskScore ?? 0}/100. Compliance rating is ${kpi?.complianceScore ?? 100}%. Predicted risk score based on active alerts. 3 paragraphs: findings, predictions, AI recommendations.`,
+    'compliance': `Write a Regulatory Compliance Report summary for a steel plant. Status: active workers ${workersList.length}, permit compliance at ${kpi?.complianceScore ?? 100}%. Write formal audit-ready 3-paragraph summary covering status, violations, and remediation plan.`,
+    'worker-safety': `Write a Worker Safety Report summary. ${workersList.length} workers active. PPE compliant: ${workersList.filter(w => w.ppeStatus === 'compliant').length}, partial: ${workersList.filter(w => w.ppeStatus === 'partial').length}, non-compliant: ${workersList.filter(w => w.ppeStatus === 'non-compliant').length}. Write worker safety analysis in 3 paragraphs.`,
+    'equipment': `Write an Equipment Health Report summary for a steel plant. ${sensorsList.length} sensors: online count ${sensorsList.filter(s => s.status === 'online').length}, warning count ${sensorsList.filter(s => s.status === 'warning').length}, critical count ${sensorsList.filter(s => s.status === 'critical').length}. Write equipment health analysis in 3 paragraphs: status, anomalies, maintenance recommendations.`,
   };
   try {
     const res = await fetch(
@@ -157,22 +137,37 @@ async function generateAISummary(reportId: string): Promise<string> {
         })
       }
     );
-    if (!res.ok) return getFallbackSummary(reportId);
+    if (!res.ok) return getFallbackSummary(reportId, kpi, alertsList, workersList, permitsList, sensorsList);
     const data = await res.json();
-    return data?.candidates?.[0]?.content?.parts?.[0]?.text ?? getFallbackSummary(reportId);
+    return data?.candidates?.[0]?.content?.parts?.[0]?.text ?? getFallbackSummary(reportId, kpi, alertsList, workersList, permitsList, sensorsList);
   } catch {
-    return getFallbackSummary(reportId);
+    return getFallbackSummary(reportId, kpi, alertsList, workersList, permitsList, sensorsList);
   }
 }
 
-function getFallbackSummary(id: string): string {
+function getFallbackSummary(
+  id: string,
+  kpi: any,
+  alertsList: any[],
+  workersList: any[],
+  permitsList: any[],
+  sensorsList: any[]
+): string {
+  const activeWorkersCount = workersList.length;
+  const criticalAlertsCount = alertsList.filter(a => (a.severity || '').toLowerCase() === 'critical' && !a.acknowledged).length;
+  const warningAlertsCount = alertsList.filter(a => (a.severity || '').toLowerCase() === 'warning' && !a.acknowledged).length;
+  const activePermitsCount = permitsList.filter(p => (p.status || '').toLowerCase() === 'active').length;
+  const complianceVal = kpi?.complianceScore ?? 100;
+  const riskVal = kpi?.riskScore ?? 0;
+  const healthVal = kpi?.plantHealth ?? 100;
+
   const summaries: Record<string, string> = {
-    'daily-safety': 'Plant operations continued on Morning Shift with 8 active workers across 9 monitored zones. Two critical safety events were recorded: an oxygen deficiency alert in Zone F (Tank Farm) where O₂ dropped to 18.2% — below the 19.5% threshold — and a PPE non-compliance violation for Worker W004 inside a confined space without proper respiratory equipment.\n\nFour warning-level alerts are currently active: H₂S concentrations in Zone A trending upward to 8.4 ppm (threshold: 10 ppm), CO levels at 23.1 ppm in Zone B, compressor vibration at 7.8 mm/s approaching the 8 mm/s shutdown threshold, and Permit PTW-2024-0042 compliance declining to 62%.\n\nImmediate recommended actions: (1) Evacuate Worker W004 from Zone F and suspend confined-space permit. (2) Increase Zone A ventilation by 40%. (3) Brief Worker W001 on H₂S trend. The plant has maintained 47 consecutive incident-free days — protect this record with swift action.',
-    'incident': 'Primary incident: At 10:21 hrs, Worker W004 (Suresh Kumar, Process Operator) entered Tank T-14 in Zone F for a scheduled internal inspection without a Self-Contained Breathing Apparatus. Simultaneously, oxygen levels registered at 18.2% — 1.3 percentage points below the IDLH threshold of 19.5%. The AI safety system flagged this as a compound critical risk at 10:23:50 hrs.\n\nRoot Cause Analysis: (1) PPE compliance check was not enforced at zone entry. (2) Rescue team was not positioned on standby prior to confined-space entry as required by OISD-GDN-169. (3) Real-time O₂ sensor alert (S007) was not escalated to the field supervisor within the required 2-minute protocol window.\n\nCorrective Actions: (1) Immediately suspend PTW-2024-0042 and evacuate Zone F. (2) Retrain all Zone F personnel on confined-space PPE requirements — mandatory within 24 hours. (3) Update entry procedure to require rescue team confirmation before permit activation.',
-    'ai-risk': 'The AI Risk Engine has computed a composite plant risk score of 68/100 — classified as HIGH — representing a 12-point increase from the 06:00 baseline. The primary driver is a compound risk scenario in Zone F where three simultaneous hazard factors have converged: sub-threshold oxygen concentration, active confined-space permit, and confirmed PPE non-compliance. The model assigns an 87% escalation probability within 8 minutes without intervention.\n\nPredictive modeling of current sensor trajectories indicates the following risk progression if no corrective action is taken: 2-hour score 74, 4-hour score 79, 6-hour score 83, 8-hour score 87. Zone A contributes a secondary compound risk (64% probability, ~35 minute escalation window) as H₂S and furnace temperature are both trending upward simultaneously during an active hot-work permit.\n\nAI Recommendations: Execute immediate Zone F evacuation and permit suspension. Increase Zone A ventilation to 100% capacity. Deploy predictive maintenance inspection on Compressor C3 within 2 hours. Schedule a safety briefing for the afternoon shift handover at 14:00.',
-    'compliance': 'Regulatory compliance assessment as of today\'s Morning Shift indicates an overall score of 73 out of 100. Five of eight monitored standards are in full compliance: IS 13947 (Electrical Isolation), OISD-GDN-206 (Gas Detection — 12/12 sensors operational), IS 15683 (Fire Protection), EPA Stack Emissions (SO₂ at 4.2 mg/m³ vs. 100 mg/m³ limit), and PESO Explosive Atmosphere certification.\n\nTwo standards are currently in violation: Factory Act 1948 PPE requirements (Worker W004 non-compliant, Worker W003 partial compliance) and OISD-STD-105 Permit-to-Work standards (PTW-2024-0042 at 62% compliance, below the 80% required threshold). One standard carries a warning: OISD-GDN-169 Confined Space Safety, as O₂ monitoring is active but a rescue team is not on standby.\n\nRemediation Plan: Violations must be corrected within the current shift to avoid regulatory reporting obligations. Corrective actions must be documented with photographic evidence and supervisor sign-off within 4 hours. A full compliance review is recommended before the afternoon shift begins.',
-    'worker-safety': 'Eight workers are active on the Morning Shift across six plant zones. One worker is classified at Critical Risk: Suresh Kumar (W004, Process Operator) is currently inside Tank T-14 — a confined space — with PPE non-compliance confirmed. His biometric data shows an elevated heart rate of 105 bpm, suggesting physiological stress consistent with the hazardous environment.\n\nTwo workers are at High Risk: Arjun Sharma (W001) is operating in Zone A with cumulative H₂S exposure of 7.2 ppm and a heart rate of 94 bpm, and Deepak Verma (W003) is conducting compressor maintenance with only partial PPE — a missing face shield in a high-vibration environment. One worker (Rajesh Nair, W007) is classified as medium risk due to incomplete buddy-system compliance during height work.\n\nThe remaining four workers — Ravi Patel, Manish Gupta, Priya Singh, and Amit Joshi — are operating within safe biometric and environmental parameters. Recommended actions: immediate intervention for W004, PPE enforcement for W003, and buddy-system verification for W007.',
-    'equipment': '12 sensors are deployed across 9 plant zones. 11 sensors are currently online and operational. One critical anomaly is active: Sensor S007 (O₂ Monitor, Zone F) is reading 18.2% oxygen — below the 19.5% safety threshold and approaching the 16% IDLH limit. This sensor is functioning correctly; the anomaly reflects actual atmospheric conditions in Zone F.\n\nFour sensors are in warning state: S001 (H₂S, Zone A) at 8.4 ppm and trending upward; S002 (CO, Zone B) at 23.1 ppm approaching 25 ppm; S006 (Vibration, Zone E — Compressor C3) at 7.8 mm/s with a 12% increase in the last 30 minutes suggesting potential bearing wear; and S012 (H₂, Zone I) at 0.4% LEL trending upward. Blast Furnace temperature (S003) is at 1,487°C, approaching the 1,500°C operational threshold.\n\nMaintenance Recommendations: (1) Schedule Compressor C3 bearing inspection within 2 hours. (2) Verify Blast Furnace cooling flow is at maximum capacity. (3) Calibrate S012 H₂ sensor — last calibration was 18 days ago. (4) Conduct full O₂ sensor audit in Zone F after evacuation is complete.',
+    'daily-safety': `Plant safety review: Current composite risk score is ${riskVal}/100 with plant health at ${healthVal}%. There are ${activeWorkersCount} active workers on shift and ${activePermitsCount} active permits-to-work in progress.\n\nWe currently detect ${criticalAlertsCount} critical safety alerts and ${warningAlertsCount} warning alerts. Overall safety compliance score is estimated at ${complianceVal}%.\n\nRecommended safety actions: Ensure all workers maintain 100% PPE compliance. Review all permits-to-work below the 80% compliance threshold, and continuously monitor gas concentration readings in high-risk zones.`,
+    'incident': `Incident analysis summary: There are ${criticalAlertsCount} critical alerts active in the system. The safety team is investigating the source of these alerts immediately. ${criticalAlertsCount > 0 ? 'Critical safety events require immediate evacuation of the affected zones and suspension of active permits.' : 'No active critical incidents or alerts reported in the current shift.'}\n\nRoot Cause and Mitigation: Establish mandatory pre-task hazard checks, verify that rescue standby teams are present for confined space works, and ensure sensor networks are online and fully operational.`,
+    'ai-risk': `AI predictive risk profile: Plant composite risk is evaluated at ${riskVal}/100. Based on current sensor trajectories and permit activities, the system forecasts a stable risk trend if active alerts are resolved promptly.\n\nKey risk drivers: worker density in specific zones, hazardous gas levels, and PPE status anomalies. Predictive models estimate that early mitigation of warnings will reduce overall composite risk by 35% within the next hour.`,
+    'compliance': `Compliance audit review: The plant compliance rating is currently at ${complianceVal}%. Monitoring indicates Factory Act PPE compliance and Permit-to-Work standards are active.\n\nMonitored standards status: IS 13947 Isolation is operational, OISD-GDN-206 Gas Detection is active with sensor coverage, and EPA Emission readings are nominal.\n\nRequired corrections: Address all outstanding PPE and permit compliance warnings immediately during this shift to prevent regulatory violations.`,
+    'worker-safety': `Worker health and safety overview: ${activeWorkersCount} workers are currently logged on shift. Biometrics show heart rates and gas exposure monitoring are active.\n\nRisk levels: ${workersList.filter(w => w.riskLevel === 'critical').length} critical risk, ${workersList.filter(w => w.riskLevel === 'high').length} high risk, and ${workersList.filter(w => w.riskLevel === 'medium').length} medium risk worker profiles registered.\n\nRemedial steps: Contact supervisor for workers under high or critical stress, enforce compliance checks at zone entry gates, and deploy buddy systems for high-altitude works.`,
+    'equipment': `Equipment health analysis: ${sensorsList.filter(s => s.status === 'online' || s.status === 'ONLINE').length}/${sensorsList.length || 1} sensors are online. Anomalies identified: ${sensorsList.filter(s => s.status === 'warning' || s.status === 'critical').length} warning/critical readings detected.\n\nPriority checks: Inspect compressor vibrations, verify furnace temperature profiles, and perform calibration tasks on older sensors.\n\nMaintenance scheduling: Schedule routine diagnostic inspections for flagged equipment sensors within the shift.`,
   };
   return summaries[id] || summaries['daily-safety'];
 }
@@ -366,21 +361,53 @@ const ReportModal: React.FC<ReportModalProps> = ({ report, onClose, sensors, wor
   const generateReport = useCallback(async () => {
     setLoadingAI(true);
     setActiveTab('ai');
-    const summary = await generateAISummary(report.id);
+    const summary = await generateAISummary(report.id, kpi, alerts, workers, permits, sensors);
     setAiSummary(summary);
     setLoadingAI(false);
     setGenerated(true);
-  }, [report.id]);
+  }, [report.id, kpi, alerts, workers, permits, sensors]);
 
   const handlePrint = () => {
     if (!aiSummary) {
-      generateAISummary(report.id).then(s => printReport(report.id, report.name, s, kpi, alerts, workers, permits));
+      generateAISummary(report.id, kpi, alerts, workers, permits, sensors).then(s => printReport(report.id, report.name, s, kpi, alerts, workers, permits));
     } else {
       printReport(report.id, report.name, aiSummary, kpi, alerts, workers, permits);
     }
   };
 
   const renderChart = () => {
+    const dynamicRiskFactors = [
+      { factor: 'Gas Concentration', score: Math.round(Math.min(95, (kpi?.riskScore || 0) * 0.95)) },
+      { factor: 'Worker Exposure', score: Math.max(0, 100 - (kpi?.complianceScore || 100)) },
+      { factor: 'Equipment Health', score: Math.round(Math.max(10, (kpi?.riskScore || 0) * 0.85)) },
+      { factor: 'Permit Risk', score: Math.min(100, (alerts.filter((a: any) => a.severity === 'critical').length || 0) * 25) },
+      { factor: 'Environmental', score: Math.max(0, (kpi?.plantHealth || 100) - 20) },
+    ];
+    const radarData = dynamicRiskFactors.map(rf => ({
+      subject: rf.factor.split(' ')[0],
+      score: rf.score,
+      safe: 60,
+    }));
+
+    const workerComplianceData = workers.map(w => ({
+      name: (w.name || '').split(' ')[0],
+      risk: w.riskLevel === 'critical' ? 95 : w.riskLevel === 'high' ? 75 : w.riskLevel === 'medium' ? 50 : 25,
+      heartRate: w.heartRate ?? 72,
+      exposure: w.gasExposure ?? 0,
+    }));
+
+    const sensorHealthData = sensors.map(s => ({
+      name: (s.name || '').split('—')[0].split('-')[0].trim(),
+      value: s.threshold ? Math.round((s.value / s.threshold) * 100) : 0,
+      threshold: 100,
+      status: s.status,
+    }));
+
+    const simulatedTrend = Array.from({ length: 12 }, (_, i) => ({
+      hour: `${String(i + 8).padStart(2, '0')}:00`,
+      riskScore: Math.round((kpi?.riskScore || 50) + Math.sin(i * 0.5) * 10 + Math.random() * 5),
+    }));
+
     switch (report.id) {
       case 'daily-safety':
       case 'incident':
@@ -401,7 +428,7 @@ const ReportModal: React.FC<ReportModalProps> = ({ report, onClose, sensors, wor
       case 'ai-risk':
         return (
           <ResponsiveContainer width="100%" height={200}>
-            <AreaChart data={trendData24h.slice(-12)}>
+            <AreaChart data={simulatedTrend}>
               <defs>
                 <linearGradient id="riskGrad" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="5%" stopColor="#8B5CF6" stopOpacity={0.3} />
@@ -458,7 +485,7 @@ const ReportModal: React.FC<ReportModalProps> = ({ report, onClose, sensors, wor
       default:
         return (
           <ResponsiveContainer width="100%" height={200}>
-            <AreaChart data={trendData24h.slice(-12)}>
+            <AreaChart data={simulatedTrend}>
               <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
               <XAxis dataKey="hour" tick={{ fill: '#475569', fontSize: 10 }} />
               <YAxis tick={{ fill: '#475569', fontSize: 10 }} />
@@ -588,13 +615,23 @@ const ReportModal: React.FC<ReportModalProps> = ({ report, onClose, sensors, wor
               <table className="rm-table">
                 <thead><tr><th>Standard</th><th>Status</th><th>Zone</th></tr></thead>
                 <tbody>
-                  {complianceChecks.map(c => (
-                    <tr key={c.id}>
-                      <td style={{ fontSize: 11 }}>{c.rule}</td>
-                      <td><span className={`badge-chip ${c.status === 'pass' ? 'success' : c.status === 'warning' ? 'warning' : 'critical'}`}>{c.status.toUpperCase()}</span></td>
-                      <td style={{ color: 'var(--text-muted)', fontSize: 11 }}>{c.zone}</td>
-                    </tr>
-                  ))}
+                  {(() => {
+                    const dynamicComplianceChecks = [
+                      { id: 'C001', rule: 'IS 13947 — Electrical Isolation', status: 'pass', zone: 'Zone G' },
+                      { id: 'C002', rule: 'OISD-GDN-206 — Gas Detection', status: sensors.every((s: any) => s.status !== 'offline') ? 'pass' : 'warning', zone: 'All Zones' },
+                      { id: 'C003', rule: 'Factory Act 1948 — PPE Compliance', status: workers.some((w: any) => w.ppeStatus === 'non-compliant') ? 'critical' : workers.some((w: any) => w.ppeStatus === 'partial') ? 'warning' : 'pass', zone: 'All Zones' },
+                      { id: 'C004', rule: 'OISD-STD-105 — Permit to Work', status: permits.some((p: any) => p.compliance < 80) ? 'warning' : 'pass', zone: 'All Zones' },
+                      { id: 'C005', rule: 'IS 15683 — Fire Protection', status: 'pass', zone: 'All Zones' },
+                      { id: 'C006', rule: 'EPA — Stack Emissions', status: 'pass', zone: 'Zone D' },
+                    ];
+                    return dynamicComplianceChecks.map(c => (
+                      <tr key={c.id}>
+                        <td style={{ fontSize: 11 }}>{c.rule}</td>
+                        <td><span className={`badge-chip ${c.status === 'pass' ? 'success' : c.status === 'warning' ? 'warning' : 'critical'}`}>{c.status.toUpperCase()}</span></td>
+                        <td style={{ color: 'var(--text-muted)', fontSize: 11 }}>{c.zone}</td>
+                      </tr>
+                    ));
+                  })()}
                 </tbody>
               </table>
             </div>
@@ -773,7 +810,7 @@ const ReportsAnalytics: React.FC = () => {
                   title="Export PDF"
                   onClick={e => {
                     e.stopPropagation();
-                    generateAISummary(report.id).then(s => printReport(report.id, report.name, s, kpi, alertsList, workersList, permitsList));
+                    generateAISummary(report.id, kpi, alertsList, workersList, permitsList, sensorsList).then(s => printReport(report.id, report.name, s, kpi, alertsList, workersList, permitsList));
                   }}
                 >
                   <Download size={12} />

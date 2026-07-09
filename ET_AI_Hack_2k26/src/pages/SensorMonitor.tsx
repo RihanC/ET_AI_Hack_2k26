@@ -3,8 +3,7 @@ import { Search, Filter, X, TrendingUp, TrendingDown, Minus, ChevronRight, Cpu, 
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine
 } from 'recharts';
-import { sensors } from '../data/mockData';
-import type { Sensor } from '../data/mockData';
+import type { Sensor } from '../data/types';
 import './SensorMonitor.css';
 
 interface SensorMonitorProps {

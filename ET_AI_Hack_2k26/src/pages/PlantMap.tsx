@@ -7,7 +7,6 @@ import {
   Wind, Gauge, Users, FileText, Camera, Zap,
   MapPin, Activity, Brain, ChevronDown, Rotate3d
 } from 'lucide-react';
-import { sensors, workers, permits, alerts } from '../data/mockData';
 import './PlantMap.css';
 
 interface PlantMapProps {
@@ -224,7 +223,12 @@ const WorkerTrail3D: React.FC<{ workerId: string }> = ({ workerId }) => {
   );
 };
 
-const CameraController: React.FC<{ selected: SelectedObject | null; controlsRef: React.RefObject<any> }> = ({ selected, controlsRef }) => {
+const CameraController: React.FC<{
+  selected: SelectedObject | null;
+  controlsRef: React.RefObject<any>;
+  sensors: any[];
+  workers: any[];
+}> = ({ selected, controlsRef, sensors, workers }) => {
   const { camera } = useThree();
   const defaultPos = useMemo(() => new THREE.Vector3(0, 24, 21), []);
   const defaultTarget = useMemo(() => new THREE.Vector3(0, 0, 0), []);
@@ -727,7 +731,6 @@ const Exit3D: React.FC<{ exit: typeof EXITS[0] }> = ({ exit }) => {
 import { useEffect } from 'react';
 import { sensorsApi, workersApi, permitsApi } from '../services/api';
 import { getSocket, connectSocket, EVENTS } from '../services/socket';
-import { sensors as mockSensors, workers as mockWorkers, permits as mockPermits } from '../data/mockData';
 
 function timeAgo(date: Date): string {
   const seconds = Math.floor((Date.now() - date.getTime()) / 1000);
@@ -806,9 +809,9 @@ const PlantMap: React.FC<PlantMapProps> = ({ onNavigate }) => {
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const controlsRef = useRef<any>(null);
 
-  const [sensorsState, setSensorsState] = useState<any[]>(mockSensors);
-  const [workersState, setWorkersState] = useState<any[]>(mockWorkers);
-  const [permitsState, setPermitsState] = useState<any[]>(mockPermits);
+  const [sensorsState, setSensorsState] = useState<any[]>([]);
+  const [workersState, setWorkersState] = useState<any[]>([]);
+  const [permitsState, setPermitsState] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   const fetchAllData = async () => {
@@ -1031,7 +1034,7 @@ const PlantMap: React.FC<PlantMapProps> = ({ onNavigate }) => {
                 />
                 <pointLight position={[-15, 15, -15]} intensity={0.5} />
                 
-                <CameraController selected={selected} controlsRef={controlsRef} />
+                <CameraController selected={selected} controlsRef={controlsRef} sensors={sensorsState} workers={workersState} />
                 
                 <Ground3D />
 

@@ -47,6 +47,12 @@ class SensorController {
     const health = await sensorService.getHealth(req.params.id);
     ApiResponse.ok(res, 'Sensor health retrieved', health);
   });
+
+  ingestReading = asyncHandler(async (req, res) => {
+    const { value } = req.body;
+    const sensor = await sensorService.update(req.params.id, { value });
+    ApiResponse.ok(res, 'Sensor reading ingested successfully', sensor);
+  });
 }
 
 export default new SensorController();
